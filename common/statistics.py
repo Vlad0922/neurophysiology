@@ -8,6 +8,18 @@ from scipy.special import psi
 FILTER_TIME = 1
 FILTER_NUMBER = 0
 
+DEFAULT_BBH = 0.016
+DEFAULT_BBL = 0.01
+DEFAULT_WIN_SIZE = 13
+DEFAULT_REPEAT = 3
+DEFAULT_FILT_LOWER = -1
+DEFAULT_FILT_UPPER = -1
+DEFAULT_FILT_TYPE = FILTER_TIME
+DEFAULT_PAUSE_INDEX_BOUND = 50
+DEFAULT_MODALIRITY_BOUND = 10
+DEFAULT_PAUSE_RATIO_BOUND = 50
+DEFAULT_BURST_BEHAVIOUR_BOUND = 100
+
 def sec_to_ms(sec):
     return sec*1000
 
@@ -16,8 +28,10 @@ def ms_to_sec(ms):
     return ms/1000
 
 
-def calc_intervals(spike_data, filter_by, low, high):
-    if filter_by == FILTER_TIME:
+def calc_intervals(spike_data, filter_by=DEFAULT_FILT_TYPE, low=DEFAULT_FILT_LOWER, high=DEFAULT_FILT_UPPER):
+    if low == -1 or high == -1:
+        res = np.ediff1d(spike_data)
+    elif filter_by == FILTER_TIME:
         spike_data = spike_data[(spike_data >= low) & (spike_data <= high)]
         res = np.ediff1d(spike_data)
     elif filter_by == FILTER_NUMBER:
@@ -37,9 +51,13 @@ def calc_cv(intervals):
     return int_cv
 
 
-def calc_nu(intervals, wsize):
+def calc_nu(intervals, wsize=DEFAULT_WIN_SIZE):
     n = len(intervals)
     m = wsize
+
+    if m > n:
+        m = n//2
+
     int_mean = np.mean(intervals)
     int_sorted = np.sort(intervals)
 
@@ -61,7 +79,7 @@ def calc_nu(intervals, wsize):
     return vasrnu
 
 
-def calc_bi(intervals, bbh, bbl, brep):
+def calc_bi(intervals, bbh=DEFAULT_BBH, bbl=DEFAULT_BBL, brep=DEFAULT_REPEAT):
     bg1 = np.array(intervals <= bbh, dtype=int)
     bg2 = np.array(intervals <= bbl, dtype=int)
 
@@ -90,31 +108,51 @@ def calc_bi(intervals, bbh, bbl, brep):
 
 
 def calc_moment(data, moment):
-    m = np.mean(intervals)
-    def sum_moment(v, m):
+    m = np.mean(data)
+    def sum_moment(v):
         return np.power(v - m, moment)
 
-    t = np.sum(np.apply_along_axis(sum_moment, 0, intervals))
-    return t/((len(intervals) - 1)*np.power(np.std(intervals), moment))  
+    t = np.sum(np.apply_along_axis(sum_moment, 0, data))
+    return t/((len(data) - 1)*np.power(np.std(data), moment))  
 
 
 def calc_freq_var(intervals):
     return 100*(max(intervals) - min(intervals))/max(intervals)
 
 
-def calc_modalirity_burst(intervals):
-    return len(intervals < ms_to_sec(10))/len(intervals >= ms_to_sec(10))
+def calc_modalirity_burst(intervals, bound=DEFAULT_MODALIRITY_BOUND):
+    below = np.sum(intervals < ms_to_sec(bound))
+    above = np.sum(intervals >= ms_to_sec(bound))
 
-def calc_pause_index(intervals):
-    return len(intervals > ms_to_sec(50))/len(intervals <= ms_to_sec(50))
+    if above == 0:
+        return 1.
+    else:
+        return below/above
 
 
-def calc_pause_ratio(intervals):
-    return (len(intervals > ms_to_sec(50)) + np.sum(intervals[intervals > ms_to_sec(50)]))/(len(intervals <= ms_to_sec(50)) + np.sum(intervals[intervals <= ms_to_sec(50)]))
+def calc_pause_index(intervals, bound=DEFAULT_PAUSE_INDEX_BOUND):
+    below = np.sum(intervals < ms_to_sec(bound))
+    above = np.sum(intervals >= ms_to_sec(bound))
+
+    if below == 0:
+        return 1.
+    else:
+        return above/below
 
 
-def calc_burst_behavior(intervals):
-    bound = ms_to_sec(100)
+def calc_pause_ratio(intervals, bound=DEFAULT_PAUSE_RATIO_BOUND):
+    above = np.sum(intervals >= ms_to_sec(bound)) + np.sum(intervals[intervals >= ms_to_sec(bound)])
+    below = np.sum(intervals < ms_to_sec(bound)) + np.sum(intervals[intervals < ms_to_sec(bound)])
+
+    if below == 0:
+        return 1.
+    else:
+        return above/below
+
+
+# what to do with low freq data? 
+def calc_burst_behavior(intervals, bound=DEFAULT_BURST_BEHAVIOUR_BOUND):
+    bound = ms_to_sec(bound)
     total_count = int(np.ceil(np.sum(intervals)/bound))
     above_count = 0
 
@@ -140,5 +178,5 @@ def calc_skewness(intervals):
     return calc_moment(intervals, 3)
 
 
-def calc_kurtosis(intevals):
+def calc_kurtosis(intervals):
     return calc_moment(intervals, 4)
