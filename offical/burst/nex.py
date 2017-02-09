@@ -1,9 +1,14 @@
+from __future__ import division
+
 import os.path
+import imp
+
+statistics = imp.load_source('statistics', 'C:\\neurophysiology\\common\\statistics.py')
+from statistics import *
 
 import nex
 
 DEFAULT_FILENAME = 'burst_res.csv'
-
 
 PARAMS = dict()
 
@@ -19,7 +24,7 @@ def get_params():
     filter_type = DEFAULT_FILT_TYPE
     filter_lower = DEFAULT_FILT_LOWER
     filter_upper = DEFAULT_FILT_UPPER
-    file_path = DEFAULT_FILENAME
+    file_path = os.environ['HOMEPATH'] + '\\Desktop\\'
     
     doc = nex.GetActiveDocument()
     __wrapper = []
@@ -66,24 +71,35 @@ def get_params():
     PARAMS['data_name'] = nex.GetName(Neuron_Var)
     PARAMS['file_path'] = file_path + '\\' + DEFAULT_FILENAME
 
+
 def main():    
     get_params()
     
     spike_data = PARAMS['data']
         
-    time_int = calc_intervals(spike_data, PARAMS['filter'],
-                                PARAMS['filter_lower'], PARAMS['filter_upper']) 
+    time_int = calc_intervals(spike_data, filter_by=PARAMS['filter'],
+                                low=PARAMS['filter_lower'], high=PARAMS['filter_upper']) 
                                         
-    bi = calc_bi(time_int, PARAMS['bbh'], bbl = PARAMS['bbl'], brep = PARAMS['brep'])
-    cv, nu = calc_cv(time_int)
+    bi = calc_burst_index(time_int, bbh=PARAMS['bbh'], bbl=PARAMS['bbl'], brep=PARAMS['brep'])
+    cv = calc_cv(time_int)
+    nu = calc_nu(time_int)
+    freq_v = calc_freq_var(time_int)
+    mod_burst = calc_modalirity_burst(time_int)
+    pause_ind = calc_pause_index(time_int)
+    pause_rat = calc_pause_ratio(time_int)
+    burst_beh = calc_burst_behavior(time_int)
+    skew = calc_skewness(time_int)
+    kurt = calc_kurtosis(time_int)
     
-    if os.path.isfile(PARAMS['file_path']):
-        with open(PARAMS['file_path'], 'a+') as out:
-            out.write('{};{};{};{}\n'.format(PARAMS['data_name'], bi, cv, nu))
-    else:
+    if not os.path.isfile(PARAMS['file_path']):
         with open(PARAMS['file_path'], 'w') as out:
-            out.write('data_name;bi;cv;nu\n')
-            out.write('{};{};{};{}\n'.format(PARAMS['data_name'], bi, cv, nu))
+            out.write('data_name;burst_index;cv;nu;frequence_variance;modalirity_burst;'
+                        'pause_index;pause_ratio;burst_behavior;skewness;kurtosis\n')
+        
+    with open(PARAMS['file_path'], 'a+') as out:
+            out.write('{};{};{};{};{};{};{};{};{};{}\n'.format(PARAMS['data_name'], bi, 
+                                             cv, nu, freq_v, mod_burst, pause_ind,
+                                             pause_rat, burst_beh, skew, kurt))
             
     print 'done'
             
