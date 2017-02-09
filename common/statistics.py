@@ -19,6 +19,7 @@ DEFAULT_PAUSE_INDEX_BOUND = 50
 DEFAULT_MODALIRITY_BOUND = 10
 DEFAULT_PAUSE_RATIO_BOUND = 50
 DEFAULT_BURST_BEHAVIOUR_BOUND = 100
+DEFAULT_STEP = 1
 
 def sec_to_ms(sec):
     return sec*1000
@@ -28,14 +29,14 @@ def ms_to_sec(ms):
     return ms/1000
 
 
-def calc_intervals(spike_data, filter_by=DEFAULT_FILT_TYPE, low=DEFAULT_FILT_LOWER, high=DEFAULT_FILT_UPPER):
+def calc_intervals(spike_data, step=DEFAULT_STEP, filter_by=DEFAULT_FILT_TYPE, low=DEFAULT_FILT_LOWER, high=DEFAULT_FILT_UPPER):
     if low == -1 or high == -1:
         res = np.ediff1d(spike_data)
     elif filter_by == FILTER_TIME:
         spike_data = spike_data[(spike_data >= low) & (spike_data <= high)]
-        res = np.ediff1d(spike_data)
+        res = spike_data.flat[step:] - spike_data.flat[:-step]
     elif filter_by == FILTER_NUMBER:
-        res = np.ediff1d(spike_data)[low:high+1]
+        res = (spike_data.flat[step:] - spike_data.flat[:-step])[low:high+1]
     else:
         raise Exception('Wrong filter type!')
 
@@ -79,7 +80,7 @@ def calc_nu(intervals, wsize=DEFAULT_WIN_SIZE):
     return vasrnu
 
 
-def calc_bi(intervals, bbh=DEFAULT_BBH, bbl=DEFAULT_BBL, brep=DEFAULT_REPEAT):
+def calc_burst_index(intervals, bbh=DEFAULT_BBH, bbl=DEFAULT_BBL, brep=DEFAULT_REPEAT):
     bg1 = np.array(intervals <= bbh, dtype=int)
     bg2 = np.array(intervals <= bbl, dtype=int)
 
@@ -105,6 +106,14 @@ def calc_bi(intervals, bbh=DEFAULT_BBH, bbl=DEFAULT_BBL, brep=DEFAULT_REPEAT):
     bil = bgrf/bgl2
 
     return bil
+
+
+def calc_bi_two(spikes):
+    int_1 = calc_intervals(spikes, step=1)
+    int_2 = calc_intervals(spikes, step=2)
+    e_1 = np.mean(int_1)
+
+    return (2*np.var(int_1) - np.var(int_2))/(2*e_1*e_1)
 
 
 def calc_moment(data, moment):

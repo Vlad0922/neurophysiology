@@ -57,7 +57,7 @@ def read_gaya_file(filename):
                 spikes = frame_to_time(map(int, spikes.split()), freq)
                 time_int = calc_intervals(spikes)
 
-                bi = calc_bi(time_int, param_coeff*DEFAULT_BBH, param_coeff*DEFAULT_BBL)
+                bi = calc_burst_index(time_int, bbh=param_coeff*DEFAULT_BBH, bbl=param_coeff*DEFAULT_BBL)
                 cv = calc_cv(time_int)
                 nu = calc_nu(time_int)
                 freq_v = calc_freq_var(time_int)
