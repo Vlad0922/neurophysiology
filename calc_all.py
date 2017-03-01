@@ -3,15 +3,19 @@ from __future__ import division
 import os.path
 import imp
 
-statistics = imp.load_source('statistics', 'C:\\neurophysiology\\common\\statistics.py')
 from statistics import *
+from oscore import *
 
 import nex
 
-DEFAULT_FILENAME = 'burst_res.csv'
+DEFAULT_FILENAME = 'oscore_res.csv'
 
 PARAMS = dict()
 
+
+def sec_to_timestamps(spikes, freq):
+    return np.array((spikes-np.floor(spikes[0]))*PARAMS['frequency'], dtype=np.int32)
+	
 
 def get_params():
     global PARAMS
@@ -25,6 +29,10 @@ def get_params():
     filter_lower = DEFAULT_FILT_LOWER
     filter_upper = DEFAULT_FILT_UPPER
     file_path = os.environ['HOMEPATH'] + '\\Desktop\\'
+    freq = DEFAULT_FREQ
+    fOscillationFreq = 35
+    Fmin = 30
+    Fmax = 50
     
     doc = nex.GetActiveDocument()
     __wrapper = []
@@ -37,6 +45,10 @@ def get_params():
                     filter_type, "Filter by time or interval number", "number",
                     filter_lower, "Lower bound of filtering", "number",
                     filter_upper, "Upper bound of filtering", "number",
+					freq, "Signal frequency", "number",
+					fOscillationFreq, "Oscillation frequency", "number",
+					Fmin, "Min filter frequency", "number",
+					Fmax, "Max filter frequency", "number",
                     file_path, "Result file path", "string", 
                     __wrapper )       
     
@@ -50,7 +62,11 @@ def get_params():
     filter_type = int(__wrapper[5])
     filter_lower = float(__wrapper[6])
     filter_upper = float(__wrapper[7])
-    file_path = str(__wrapper[8])
+    freq = int(__wrapper[8])
+    fOscillationFreq = int(__wrapper[9])
+    Fmin = int(__wrapper[10])
+    Fmax = int(__wrapper[11])
+    file_path = str(__wrapper[12])
     
     if filter_lower == -1:
         if filter_type == 1:
@@ -70,6 +86,9 @@ def get_params():
     PARAMS['filter_upper'] = filter_upper
     PARAMS['data_name'] = nex.GetName(Neuron_Var)
     PARAMS['file_path'] = file_path + '\\' + DEFAULT_FILENAME
+    PARAMS['frequency'] = freq
+    PARAMS['Fmin'] = Fmin
+    PARAMS['Fmax'] = Fmax
 
 
 def main():    
@@ -90,16 +109,20 @@ def main():
     burst_beh = calc_burst_behavior(time_int)
     skew = calc_skewness(time_int)
     kurt = calc_kurtosis(time_int)
+
+    Trial = sec_to_timestamps(PARAMS['data'], PARAMS['frequency']).tolist()
+    iTrialLength = Trial[-1]
+    oscore = oscore_spikes(np.array([Trial]), iTrialLength, PARAMS['Fmin'], PARAMS['Fmax'], PARAMS['frequency'])
     
     if not os.path.isfile(PARAMS['file_path']):
         with open(PARAMS['file_path'], 'w') as out:
             out.write('data_name;burst_index;cv;nu;frequence_variance;modalirity_burst;'
-                        'pause_index;pause_ratio;burst_behavior;skewness;kurtosis\n')
+                        'pause_index;pause_ratio;burst_behavior;skewness;kurtosis;oscore\n')
         
     with open(PARAMS['file_path'], 'a+') as out:
-            out.write('{};{};{};{};{};{};{};{};{};{}\n'.format(PARAMS['data_name'], bi, 
+            out.write('{};{};{};{};{};{};{};{};{};{};{};{}\n'.format(PARAMS['data_name'], bi, 
                                              cv, nu, freq_v, mod_burst, pause_ind,
-                                             pause_rat, burst_beh, skew, kurt))
+                                             pause_rat, burst_beh, skew, kurt, oscore))
             
     print 'done'
             
