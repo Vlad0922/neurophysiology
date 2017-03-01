@@ -4,6 +4,7 @@ import os.path
 import imp
 
 from statistics import *
+
 from oscore import *
 
 import nex
@@ -109,6 +110,7 @@ def main():
     burst_beh = calc_burst_behavior(time_int)
     skew = calc_skewness(time_int)
     kurt = calc_kurtosis(time_int)
+    burst_mean = calc_burst_by_mean(time_int)
 
     Trial = sec_to_timestamps(PARAMS['data'], PARAMS['frequency']).tolist()
     iTrialLength = Trial[-1]
@@ -117,12 +119,12 @@ def main():
     if not os.path.isfile(PARAMS['file_path']):
         with open(PARAMS['file_path'], 'w') as out:
             out.write('data_name,burst_index,cv,nu,frequence_variance,modalirity_burst,'
-                        'pause_index,pause_ratio,burst_behavior,skewness,kurtosis,oscore\n')
+                        'pause_index,pause_ratio,burst_behavior,skewness,kurtosis,oscore,burst_mean\n')
         
     with open(PARAMS['file_path'], 'a+') as out:
-            out.write('{},{},{},{},{},{},{},{},{},{},{},{}\n'.format(PARAMS['data_name'], bi, 
+            out.write('{},{},{},{},{},{},{},{},{},{},{},{},{}\n'.format(PARAMS['data_name'], bi, 
                                              cv, nu, freq_v, mod_burst, pause_ind,
-                                             pause_rat, burst_beh, skew, kurt, oscore))
+                                             pause_rat, burst_beh, skew, kurt, oscore, burst_mean))
             
     print 'done'
             
