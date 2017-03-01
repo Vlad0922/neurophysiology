@@ -29,19 +29,12 @@ def ms_to_sec(ms):
     return ms/1000
 
 
-def calc_intervals(spike_data, step=DEFAULT_STEP, filter_by=DEFAULT_FILT_TYPE, low=DEFAULT_FILT_LOWER, high=DEFAULT_FILT_UPPER):
-    if low == -1 or high == -1:
-        res = np.ediff1d(spike_data)
-    elif filter_by == FILTER_TIME:
-        spike_data = spike_data[(spike_data >= low) & (spike_data <= high)]
-        res = spike_data.flat[step:] - spike_data.flat[:-step]
-    elif filter_by == FILTER_NUMBER:
-        res = (spike_data.flat[step:] - spike_data.flat[:-step])[low:high+1]
-    else:
-        raise Exception('Wrong filter type!')
+def filter_spikes(spike_data, begin, end):
+    return spike_data[(spike_data >= begin) & (spike_data <= end)]
+    
 
-    return res
-
+def calc_intervals(spike_data):
+    return np.ediff1d(spike_data)
 
 def calc_cv(intervals):
     n = len(intervals)
