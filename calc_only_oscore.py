@@ -7,7 +7,7 @@ from oscore import *
 
 import nex
 
-DEFAULT_FILENAME = 'burst_res.csv'
+DEFAULT_FILENAME = 'oscore_res.csv'
 
 PARAMS = dict()
 
@@ -37,7 +37,7 @@ def get_params():
                     file_path, "Result file path", "string", 
                     __wrapper )       
     
-    Neuron_Number = __wrapper[0];
+    Neuron_Number = __wrapper[0]
     Neuron_Var = nex.GetVar(doc, Neuron_Number, "neuron")
     
     freq = int(__wrapper[1])
@@ -66,10 +66,10 @@ def main():
     
     if not os.path.isfile(PARAMS['file_path']):
         with open(PARAMS['file_path'], 'w') as out:
-            out.write('data_name;oscore\n')
+            out.write('data_name,oscore\n')
         
     with open(PARAMS['file_path'], 'a+') as out:
-            out.write('{};{}\n'.format(PARAMS['data_name'], oscore))
+            out.write('{},{}\n'.format(PARAMS['data_name'], oscore))
             
     print 'done'
             

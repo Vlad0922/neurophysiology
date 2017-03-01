@@ -8,7 +8,7 @@ from oscore import *
 
 import nex
 
-DEFAULT_FILENAME = 'oscore_res.csv'
+DEFAULT_FILENAME = 'all_res.csv'
 
 PARAMS = dict()
 
@@ -52,7 +52,7 @@ def get_params():
                     file_path, "Result file path", "string", 
                     __wrapper )       
     
-    Neuron_Number = __wrapper[0];
+    Neuron_Number = __wrapper[0]
     Neuron_Var = nex.GetVar(doc, Neuron_Number, "neuron")
     
     bbh = float(__wrapper[1])
@@ -116,11 +116,11 @@ def main():
     
     if not os.path.isfile(PARAMS['file_path']):
         with open(PARAMS['file_path'], 'w') as out:
-            out.write('data_name;burst_index;cv;nu;frequence_variance;modalirity_burst;'
-                        'pause_index;pause_ratio;burst_behavior;skewness;kurtosis;oscore\n')
+            out.write('data_name,burst_index,cv,nu,frequence_variance,modalirity_burst,'
+                        'pause_index,pause_ratio,burst_behavior,skewness,kurtosis,oscore\n')
         
     with open(PARAMS['file_path'], 'a+') as out:
-            out.write('{};{};{};{};{};{};{};{};{};{};{};{}\n'.format(PARAMS['data_name'], bi, 
+            out.write('{},{},{},{},{},{},{},{},{},{},{},{}\n'.format(PARAMS['data_name'], bi, 
                                              cv, nu, freq_v, mod_burst, pause_ind,
                                              pause_rat, burst_beh, skew, kurt, oscore))
             

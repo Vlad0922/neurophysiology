@@ -183,6 +183,10 @@ def calc_burst_behavior(intervals, bound=DEFAULT_BURST_BEHAVIOUR_BOUND):
     return above_count/total_count
 
 
+def burst_by_mean(intervals):
+	return np.mean(intervals)/np.median(intervals)
+
+	
 def calc_skewness(intervals):
     return calc_moment(intervals, 3)
 
