@@ -25,11 +25,13 @@ def get_params():
     fOscillationFreq = 35
     Fmin = 30
     Fmax = 50
+    interval = 1
     
     doc = nex.GetActiveDocument()
     __wrapper = []
     res = nex.Dialog(doc, 
                     Neuron_Number, "Select Neuron", "neuron", 
+                    interval, "Select interval(s)", "interval",
 					freq, "Signal frequency", "number",
 					fOscillationFreq, "Oscillation frequency", "number",
 					Fmin, "Min filter frequency", "number",
@@ -40,11 +42,14 @@ def get_params():
     Neuron_Number = __wrapper[0]
     Neuron_Var = nex.GetVar(doc, Neuron_Number, "neuron")
     
-    freq = int(__wrapper[1])
-    fOscillationFreq = int(__wrapper[2])
-    Fmin = int(__wrapper[3])
-    Fmax = int(__wrapper[4])
-    file_path = str(__wrapper[5])
+    interval = __wrapper[1]
+    interval_var = nex.GetVar(doc, interval, "interval")
+    
+    freq = int(__wrapper[2])
+    fOscillationFreq = int(__wrapper[3])
+    Fmin = int(__wrapper[4])
+    Fmax = int(__wrapper[5])
+    file_path = str(__wrapper[6])
     
     
     PARAMS['data'] = np.array(Neuron_Var.Timestamps())
@@ -53,14 +58,18 @@ def get_params():
     PARAMS['frequency'] = freq
     PARAMS['Fmin'] = Fmin
     PARAMS['Fmax'] = Fmax
-
+    PARAMS['filters'] = [p for p in zip(interval_var.Intervals()[0], interval_var.Intervals()[1])]
 
 def main():    
     get_params()
     
-    spike_data = PARAMS['data']
+    data_raw = PARAMS['data']
+    data_filtered = np.array([])
+    for filter in PARAMS['filters']:
+        spike_data = filter_spikes(data_raw, filter[0], filter[1])
+        data_filtered = np.concatenate([data_filtered, spike_data])
 
-    Trial = sec_to_timestamps(PARAMS['data'], PARAMS['frequency']).tolist()
+    Trial = sec_to_timestamps(data_filtered, PARAMS['frequency']).tolist()
     iTrialLength = Trial[-1]
     oscore = oscore_spikes(np.array([Trial]), iTrialLength, PARAMS['Fmin'], PARAMS['Fmax'], PARAMS['frequency'])
     

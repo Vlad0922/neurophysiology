@@ -31,7 +31,7 @@ def get_params():
     fOscillationFreq = 35
     Fmin = 30
     Fmax = 50
-    interval = 2
+    interval = 1
     
     doc = nex.GetActiveDocument()
     __wrapper = []
@@ -82,9 +82,11 @@ def main():
     get_params()
     
     data_raw = PARAMS['data']
+    data_filtered = np.array([])
     time_int = np.array([])
     for filter in PARAMS['filters']:
         spike_data = filter_spikes(data_raw, filter[0], filter[1])
+        data_filtered = np.concatenate([data_filtered, spike_data])
         time_int = np.concatenate([time_int, calc_intervals(spike_data)])
             
     if len(time_int) == 0:
@@ -102,7 +104,7 @@ def main():
     kurt = calc_kurtosis(time_int)
     burst_mean = calc_burst_by_mean(time_int)
 
-    Trial = sec_to_timestamps(PARAMS['data'], PARAMS['frequency']).tolist()
+    Trial = sec_to_timestamps(data_filtered, PARAMS['frequency']).tolist()
     iTrialLength = Trial[-1]
     oscore = oscore_spikes(np.array([Trial]), iTrialLength, PARAMS['Fmin'], PARAMS['Fmax'], PARAMS['frequency'])
     
