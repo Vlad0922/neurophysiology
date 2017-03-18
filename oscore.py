@@ -3,7 +3,7 @@ from __future__ import division
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
-DEFAULT_FREQ = 1000
+DEFAULT_FREQ = 1./1000
 
 # TODO: REFACTOR IT
 # I would have fired the man who wrote it..this is terrible code

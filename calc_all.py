@@ -1,18 +1,102 @@
 from __future__ import division
 
-import os.path
-import imp
+import os
 
+from sklearn.decomposition import PCA
+
+from PyQt4.QtGui import *
+import matplotlib.pyplot as plt
+
+import statistics
+reload(statistics)
 from statistics import *
+
+import openpyxl
 
 from oscore import *
 
+from collections import OrderedDict
+
 import nex
 
-DEFAULT_FILENAME = 'all_res.csv'
+DEFAULT_FILENAME = 'result.xlsx'
+PARAMS = dict()   
 
-PARAMS = dict()
+def get_workbook(fname, indices, data_keys):
+    if os.path.isfile(fname):
+        wb = openpyxl.load_workbook(fname)
+    else:
+        wb = openpyxl.Workbook()
+    
+    row = list(indices)
+    row.extend(data_keys)
+    print row
+    if 'all_results' not in wb.sheetnames:
+        ws = wb.create_sheet(0)
+        ws.title = 'all_results'
+        ws.append(row)
+    if 'oscore_results' not in wb.sheetnames:
+        ws = wb.create_sheet(1)
+        ws.title = 'oscore_results'
+        ws.append(row)
+    
+    wb.save(fname)
+    return wb   
+    
 
+def write_to_excel(fname, sheet, df, indices):
+    data_keys = sorted(list(set(df.keys()) - set(indices)))
+    wb = get_workbook(fname, indices, data_keys)
+    
+    row = [df[ind] for ind in indices]
+    row.extend([df[ind] for ind in data_keys])
+    
+    wb[sheet].append(row)  
+    wb.save(fname) 
+    
+    
+def rem_key(data, keys):
+    return {k:data[k] for k in data.keys() if k not in keys}
+
+
+class MyTable(QTableWidget):
+    def __init__(self, data, index_header):
+        QTableWidget.__init__(self, len(data.values()[0]), len(data))
+        self.index_header = index_header
+        self.data = data
+        self.setmydata()
+        self.resizeColumnsToContents()
+        self.resizeRowsToContents()
+        
+ 
+    def setmydata(self):
+        horHeaders = []
+        
+        self.init_index(horHeaders)
+        
+        for n, key in enumerate(sorted(rem_key(self.data, self.index_header).keys())):
+            horHeaders.append(key)
+            for m, item in enumerate(self.data[key]):
+                newitem = QTableWidgetItem(str(item))
+                self.setItem(m, n+1, newitem)
+                
+        self.setHorizontalHeaderLabels(horHeaders)
+  
+    
+    def init_index(self, headers):
+        headers.append(self.index_header)
+        for m, item in enumerate(self.data[self.index_header]):
+            newitem = QTableWidgetItem(str(item))
+            self.setItem(m, 0, newitem)
+        
+
+def draw_table(data):   
+    a = QApplication(sys.argv)
+ 
+    table = MyTable(data, 'data_name')
+    table.show()
+    return a.exec_()
+        
 
 def sec_to_timestamps(spikes, freq):
     return np.array((spikes-np.floor(spikes[0]))*PARAMS['frequency'], dtype=np.int32)
@@ -42,8 +126,7 @@ def get_params():
                     bbl, "Lower bound", "number",
                     brep, "Repetition count", "number",
                     msize, "Window size", "number",
-					freq, "Signal frequency", "number",
-					fOscillationFreq, "Oscillation frequency", "number",
+					freq, "Ms per bin", "number",
 					Fmin, "Min filter frequency", "number",
 					Fmax, "Max filter frequency", "number",
                     file_path, "Result file path", "string", 
@@ -59,11 +142,11 @@ def get_params():
     bbl = float(__wrapper[3])
     brep = int(__wrapper[4])
     msize = int(__wrapper[5])
-    freq = int(__wrapper[6])
-    fOscillationFreq = int(__wrapper[7])
-    Fmin = int(__wrapper[8])
-    Fmax = int(__wrapper[9])
-    file_path = str(__wrapper[10])
+    freq = float(__wrapper[6])
+    fOscillationFreq = 35
+    Fmin = int(__wrapper[7])
+    Fmax = int(__wrapper[8])
+    file_path = str(__wrapper[9])
     
     PARAMS['data'] = np.array(Neuron_Var.Timestamps())
     PARAMS['bbh'] = bbh
@@ -73,9 +156,10 @@ def get_params():
     PARAMS['filters'] = [p for p in zip(interval_var.Intervals()[0], interval_var.Intervals()[1])]
     PARAMS['data_name'] = nex.GetName(Neuron_Var)
     PARAMS['file_path'] = file_path + '\\' + DEFAULT_FILENAME
-    PARAMS['frequency'] = freq
+    PARAMS['frequency'] = int(1/freq)
     PARAMS['Fmin'] = Fmin
     PARAMS['Fmax'] = Fmax
+    PARAMS['doc_name'] = nex.GetDocTitle(doc)
 
 
 def main():    
@@ -85,13 +169,13 @@ def main():
     data_filtered = np.array([])
     time_int = np.array([])
     for filter in PARAMS['filters']:
-        spike_data = filter_spikes(data_raw, filter[0], filter[1])
+        spike_data = filter_spikes(data_raw, 0, 10000)
         data_filtered = np.concatenate([data_filtered, spike_data])
         time_int = np.concatenate([time_int, calc_intervals(spike_data)])
             
     if len(time_int) == 0:
         raise 'Empty filter result!'
-                                        
+    
     bi = calc_burst_index(time_int, bbh=PARAMS['bbh'], bbl=PARAMS['bbl'], brep=PARAMS['brep'])
     cv = calc_cv(time_int)
     nu = calc_nu(time_int)
@@ -108,16 +192,27 @@ def main():
     iTrialLength = Trial[-1]
     oscore = oscore_spikes(np.array([Trial]), iTrialLength, PARAMS['Fmin'], PARAMS['Fmax'], PARAMS['frequency'])
     
-    if not os.path.isfile(PARAMS['file_path']):
-        with open(PARAMS['file_path'], 'w') as out:
-            out.write('data_name,burst_index,cv,nu,frequence_variance,modalirity_burst,'
-                        'pause_index,pause_ratio,burst_behavior,skewness,kurtosis,oscore,burst_mean\n')
-        
-    with open(PARAMS['file_path'], 'a+') as out:
-            out.write('{},{},{},{},{},{},{},{},{},{},{},{},{}\n'.format(PARAMS['data_name'], bi, 
-                                             cv, nu, freq_v, mod_burst, pause_ind,
-                                             pause_rat, burst_beh, skew, kurt, oscore, burst_mean))
-            
+    df = dict()
+    df['data_name'] = PARAMS['data_name']
+    df['burst index'] = bi
+    df['cv'] = cv
+    df['nu'] = nu
+    df['frequency variance'] = freq_v
+    df['modalirity burst'] = mod_burst
+    df['pause index'] = pause_ind
+    df['pause ratio'] = pause_rat
+    df['skewness'] = skew
+    df['kurtoisis'] = kurt
+    df['burst_mean'] = burst_mean
+    df['oscore'] = oscore
+    df['type'] = get_type(df['burst_mean'], df['cv'])
+    df['doc_name'] = PARAMS['doc_name']
+    
+    write_to_excel(PARAMS['file_path'], 'all_results', df, ['doc_name', 'data_name'])
+    for key in df.keys():
+        df[key] = [df[key]]
+    
+    draw_table(df)
     print 'done'
             
             

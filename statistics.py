@@ -3,7 +3,7 @@ from __future__ import division
 
 import numpy as np
 from scipy.special import psi
-
+from scipy.stats import variation, kurtosis, skew
 
 FILTER_TIME = 1
 FILTER_NUMBER = 0
@@ -26,7 +26,7 @@ def sec_to_ms(sec):
 
 
 def ms_to_sec(ms):
-    return ms/1000
+    return 1.*ms/1000
 
 
 def filter_spikes(spike_data, begin, end):
@@ -36,13 +36,9 @@ def filter_spikes(spike_data, begin, end):
 def calc_intervals(spike_data):
     return np.ediff1d(spike_data)
 
-def calc_cv(intervals):
-    n = len(intervals)
-    int_mean = np.mean(intervals)
-    int_var = np.var(intervals)
-    int_cv = np.sqrt(int_var)/int_mean
 
-    return int_cv
+def calc_cv(intervals):
+    return variation(intervals)
 
 
 def calc_nu(intervals, wsize=DEFAULT_WIN_SIZE):
@@ -66,8 +62,9 @@ def calc_nu(intervals, wsize=DEFAULT_WIN_SIZE):
     tmin[:m] = int_sorted[0]
     tmin[m:n] = int_sorted[1:n-m+1]
 
-    trez = tadd - tmin
-    vasr = 1/n*(np.sum(np.log(n/(2*m)*trez)))+bi2_vas
+    trez = np.array([v if v > np.power(10., -10) else np.power(10., -10) for v in (tadd - tmin)])
+    vasr = 1/n*(np.sum(np.log(1.*n/(2*m)*trez)))+bi2_vas
+    
     vasrnu = vasr-np.log(int_mean)
 
     return vasrnu
@@ -107,15 +104,6 @@ def calc_bi_two(spikes):
     e_1 = np.mean(int_1)
 
     return (2*np.var(int_1) - np.var(int_2))/(2*e_1*e_1)
-
-
-def calc_moment(data, moment):
-    m = np.mean(data)
-    def sum_moment(v):
-        return np.power(v - m, moment)
-
-    t = np.sum(np.apply_along_axis(sum_moment, 0, data))
-    return t/((len(data) - 1)*np.power(np.std(data), moment))  
 
 
 def calc_freq_var(intervals):
@@ -176,13 +164,26 @@ def calc_burst_behavior(intervals, bound=DEFAULT_BURST_BEHAVIOUR_BOUND):
     return above_count/total_count
 
 
+def calc_local_variance(isi):
+    isi = np.asarray(isi)
+    return 3.*np.mean(np.power(np.diff(isi)/(isi[:-1] + isi[1:]), 2))
+
+
 def calc_burst_by_mean(intervals):
 	return np.median(intervals)/np.mean(intervals)
-
-	
+    
 def calc_skewness(intervals):
-    return calc_moment(intervals, 3)
+    return skew(intervals)
 
 
 def calc_kurtosis(intervals):
-    return calc_moment(intervals, 4)
+    return kurtosis(intervals, fisher=False)
+    
+def get_type(med_mean, cv):
+    if med_mean > 0.7:
+        return 'burst'
+    elif cv < 0.85:
+        return 'tonic'
+    else:
+        return 'irregular'
+
