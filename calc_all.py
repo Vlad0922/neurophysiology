@@ -168,8 +168,11 @@ def main():
     data_raw = PARAMS['data']
     data_filtered = np.array([])
     time_int = np.array([])
-    for filter in PARAMS['filters']:
-        spike_data = filter_spikes(data_raw, 0, 10000)
+    interval_len = 0.
+    for l, r in PARAMS['filters']:
+        interval_len += r - l
+         
+        spike_data = filter_spikes(data_raw, l, r)
         data_filtered = np.concatenate([data_filtered, spike_data])
         time_int = np.concatenate([time_int, calc_intervals(spike_data)])
             
@@ -207,6 +210,11 @@ def main():
     df['oscore'] = oscore
     df['type'] = get_type(df['burst_mean'], df['cv'])
     df['doc_name'] = PARAMS['doc_name']
+    df['isi_mean'] = np.mean(time_int)
+    df['isi_median'] = np.median(time_int)
+    df['isi_std'] = np.std(time_int)
+    df['spike_count'] = len(data_filtered)
+    df['filter_length'] = interval_len
     
     write_to_excel(PARAMS['file_path'], 'all_results', df, ['doc_name', 'data_name'])
     for key in df.keys():
