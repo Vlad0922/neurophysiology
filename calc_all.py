@@ -215,6 +215,8 @@ def main():
     df['isi_std'] = np.std(time_int)
     df['spike_count'] = len(data_filtered)
     df['filter_length'] = interval_len
+    df['bi_2'] = calc_bi_two(data_filtered)
+    df['lv'] = calc_local_variance(time_int)
     
     write_to_excel(PARAMS['file_path'], 'all_results', df, ['doc_name', 'data_name'])
     for key in df.keys():

@@ -180,7 +180,7 @@ def calc_kurtosis(intervals):
     return kurtosis(intervals, fisher=False)
     
 def get_type(med_mean, cv):
-    if med_mean > 0.7:
+    if med_mean < 0.7:
         return 'burst'
     elif cv < 0.85:
         return 'tonic'
