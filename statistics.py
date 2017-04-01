@@ -21,6 +21,9 @@ DEFAULT_PAUSE_RATIO_BOUND = 50
 DEFAULT_BURST_BEHAVIOUR_BOUND = 100
 DEFAULT_STEP = 1
 
+def sec_to_timestamps(spikes, freq):
+    return np.array((spikes-np.floor(spikes[0]))*freq, dtype=np.int32)
+
 def sec_to_ms(sec):
     return sec*1000
 
