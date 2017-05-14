@@ -1,3 +1,6 @@
+import os
+import sys
+
 from PyQt4.QtGui import *
 import matplotlib.pyplot as plt
 

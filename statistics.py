@@ -4,6 +4,7 @@ from __future__ import division
 import numpy as np
 from scipy.special import psi
 from scipy.stats import variation, kurtosis, skew
+from scipy.signal import periodogram
 
 FILTER_TIME = 1
 FILTER_NUMBER = 0
@@ -20,9 +21,18 @@ DEFAULT_MODALIRITY_BOUND = 10
 DEFAULT_PAUSE_RATIO_BOUND = 50
 DEFAULT_BURST_BEHAVIOUR_BOUND = 100
 DEFAULT_STEP = 1
+DEFAULT_FREQUENCY = 1000.
+
+
+def idx_of_nearest(arr, val):
+    arr = np.array(arr)
+    val, idx = min((val, idx) for (idx, val) in enumerate(np.abs(arr-val)))
+    return idx
+
 
 def sec_to_timestamps(spikes, freq):
     return np.array((spikes-np.floor(spikes[0]))*freq, dtype=np.int32)
+
 
 def sec_to_ms(sec):
     return sec*1000
@@ -36,8 +46,8 @@ def filter_spikes(spike_data, begin, end):
     return spike_data[(spike_data >= begin) & (spike_data <= end)]
     
 
-def calc_intervals(spike_data):
-    return np.ediff1d(spike_data)
+def calc_intervals(spike_data, step=1):
+    return spike_data.flat[step:] - spike_data.flat[:-step]
 
 
 def calc_cv(intervals):
@@ -169,11 +179,12 @@ def calc_burst_behavior(intervals, bound=DEFAULT_BURST_BEHAVIOUR_BOUND):
 
 def calc_local_variance(isi):
     isi = np.asarray(isi)
-    return 3.*np.mean(np.power(np.diff(isi)/(isi[:-1] + isi[1:]), 2))
+    return 3.*np.sum(np.power(np.diff(isi)/(isi[:-1] + isi[1:]), 2))/(len(isi)-1)
 
 
 def calc_burst_by_mean(intervals):
 	return np.median(intervals)/np.mean(intervals)
+
     
 def calc_skewness(intervals):
     return skew(intervals)
@@ -181,6 +192,7 @@ def calc_skewness(intervals):
 
 def calc_kurtosis(intervals):
     return kurtosis(intervals, fisher=False)
+
     
 def get_type(med_mean, cv):
     if med_mean < 0.7:
@@ -190,3 +202,10 @@ def get_type(med_mean, cv):
     else:
         return 'irregular'
 
+
+def calc_isp(isi, hz_low, hz_high):
+    f, Pxx_den = periodogram(isi, DEFAULT_FREQUENCY)
+    idx_low = idx_of_nearest(f, hz_low)
+    idx_high = idx_of_nearest(f, hz_high)
+    
+    return np.trapz(Pxx_den[idx_low:idx_high+1])

@@ -2,19 +2,25 @@ from __future__ import division
 
 import os
 
+import utility
+reload(utility)
 from utility import *
 
 import statistics
 reload(statistics)
 from statistics import *
 
+import oscore
+reload(oscore)
 from oscore import *
 
 import nex
 
 DEFAULT_FILENAME = 'result.xlsx'
 PARAMS = dict()   
-
+ISP_RANGE = [(1,3), (3,8), (8,13), (13,30), (30,100)]
+#OSCORE_RANGE = [(1., 3.), (3.,8.), (8.,12.), (12.,20.), (20.,30.), (30.,60.), (60., 90.)]
+OSCORE_RANGE = [(3.,8.), (8.,12.), (12.,20.), (20.,30.), (30.,60.), (60., 90.)]
 
 def get_params():
     global PARAMS
@@ -105,9 +111,9 @@ def main():
     kurt = calc_kurtosis(time_int)
     burst_mean = calc_burst_by_mean(time_int)
 
-    Trial = sec_to_timestamps(data_filtered, PARAMS['frequency']).tolist()
-    iTrialLength = Trial[-1]
-    oscore = oscore_spikes(np.array([Trial]), iTrialLength, PARAMS['Fmin'], PARAMS['Fmax'], PARAMS['frequency'])
+#    Trial = sec_to_timestamps(data_filtered, PARAMS['frequency']).tolist()
+#    iTrialLength = Trial[-1]
+#    oscore = oscore_spikes(np.array([Trial]), iTrialLength, PARAMS['Fmin'], PARAMS['Fmax'], PARAMS['frequency'])
     
     df = dict()
     df['data_name'] = PARAMS['data_name']
@@ -121,7 +127,7 @@ def main():
     df['skewness'] = skew
     df['kurtoisis'] = kurt
     df['burst_mean'] = burst_mean
-    df['oscore'] = oscore
+#    df['oscore'] = oscore
     df['type'] = get_type(df['burst_mean'], df['cv'])
     df['doc_name'] = PARAMS['doc_name']
     df['isi_mean'] = np.mean(time_int)
@@ -132,11 +138,20 @@ def main():
     df['bi_2'] = calc_bi_two(data_filtered)
     df['lv'] = calc_local_variance(time_int)
     
+    for (osc_l, osc_h) in OSCORE_RANGE:
+        Trial = sec_to_timestamps(data_filtered, PARAMS['frequency']).tolist()
+        iTrialLength = Trial[-1]
+        oscore = oscore_spikes(np.array([Trial]), iTrialLength, osc_l, osc_h, PARAMS['frequency'])
+        df['oscore_{}_{}'.format(osc_l, osc_h)] = oscore
+
+    for (isp_l, isp_h) in ISP_RANGE:
+        df['ISP_{}_{}'.format(isp_l, isp_h)] = calc_isp(time_int, isp_l, isp_h)
+    
     write_to_excel(PARAMS['file_path'], 'all_results', df, ['doc_name', 'data_name'])
     for key in df.keys():
         df[key] = [df[key]]
     
-    draw_table(df)
+    #draw_table(df)
     print 'done'
             
             
