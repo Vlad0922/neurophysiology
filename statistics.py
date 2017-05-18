@@ -209,3 +209,8 @@ def calc_isp(isi, hz_low, hz_high):
     idx_high = idx_of_nearest(f, hz_high)
     
     return np.trapz(Pxx_den[idx_low:idx_high+1])
+    
+
+def calc_burst_rate(isi):
+    isi = np.array(isi)
+    return 1.*np.count_nonzero(isi > np.mean(isi))/len(isi)

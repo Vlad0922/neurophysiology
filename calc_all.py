@@ -32,7 +32,6 @@ def get_params():
     msize = DEFAULT_WIN_SIZE
     file_path = os.environ['HOMEPATH'] + '\\Desktop\\'
     freq = DEFAULT_FREQ
-    fOscillationFreq = 35
     Fmin = 30
     Fmax = 50
     interval = 1
@@ -63,7 +62,6 @@ def get_params():
     brep = int(__wrapper[4])
     msize = int(__wrapper[5])
     freq = float(__wrapper[6])
-    fOscillationFreq = 35
     Fmin = int(__wrapper[7])
     Fmax = int(__wrapper[8])
     file_path = str(__wrapper[9])
@@ -137,6 +135,8 @@ def main():
     df['filter_length'] = interval_len
     df['bi_2'] = calc_bi_two(data_filtered)
     df['lv'] = calc_local_variance(time_int)
+    df['firing_rate'] = 1.*(data_filtered[-1] - data_filtered[0])/len(data_filtered)
+    df['burst_rate'] = calc_burst_rate(time_int)
     
     for (osc_l, osc_h) in OSCORE_RANGE:
         Trial = sec_to_timestamps(data_filtered, PARAMS['frequency']).tolist()
@@ -144,8 +144,8 @@ def main():
         oscore = oscore_spikes(np.array([Trial]), iTrialLength, osc_l, osc_h, PARAMS['frequency'])
         df['oscore_{}_{}'.format(osc_l, osc_h)] = oscore
 
-    for (isp_l, isp_h) in ISP_RANGE:
-        df['ISP_{}_{}'.format(isp_l, isp_h)] = calc_isp(time_int, isp_l, isp_h)
+    #for (isp_l, isp_h) in ISP_RANGE:
+    #    df['ISP_{}_{}'.format(isp_l, isp_h)] = calc_isp(time_int, isp_l, isp_h)
     
     write_to_excel(PARAMS['file_path'], 'all_results', df, ['doc_name', 'data_name'])
     for key in df.keys():
