@@ -14,7 +14,6 @@ def get_workbook(fname, indices, data_keys):
     
     row = list(indices)
     row.extend(data_keys)
-    print row
     if 'all_results' not in wb.sheetnames:
         ws = wb.create_sheet(0)
         ws.title = 'all_results'
@@ -34,6 +33,8 @@ def write_to_excel(fname, sheet, df, indices):
     
     row = [df[ind] for ind in indices]
     row.extend([df[ind] for ind in data_keys])
+    
+    row = map(str, row)
     
     wb[sheet].append(row)  
     wb.save(fname) 

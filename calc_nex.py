@@ -19,7 +19,6 @@ import nex
 DEFAULT_FILENAME = 'result.xlsx'
 PARAMS = dict()   
 ISP_RANGE = [(1,3), (3,8), (8,13), (13,30), (30,100)]
-#OSCORE_RANGE = [(1., 3.), (3.,8.), (8.,12.), (12.,20.), (20.,30.), (30.,60.), (60., 90.)]
 OSCORE_RANGE = [(3.,8.), (8.,12.), (12.,20.), (20.,30.), (30.,60.), (60., 90.)]
 
 def get_params():
@@ -108,10 +107,6 @@ def main():
     skew = calc_skewness(time_int)
     kurt = calc_kurtosis(time_int)
     burst_mean = calc_burst_by_mean(time_int)
-
-#    Trial = sec_to_timestamps(data_filtered, PARAMS['frequency']).tolist()
-#    iTrialLength = Trial[-1]
-#    oscore = oscore_spikes(np.array([Trial]), iTrialLength, PARAMS['Fmin'], PARAMS['Fmax'], PARAMS['frequency'])
     
     df = dict()
     df['data_name'] = PARAMS['data_name']
@@ -125,7 +120,6 @@ def main():
     df['skewness'] = skew
     df['kurtoisis'] = kurt
     df['burst_mean'] = burst_mean
-#    df['oscore'] = oscore
     df['type'] = get_type(df['burst_mean'], df['cv'])
     df['doc_name'] = PARAMS['doc_name']
     df['isi_mean'] = np.mean(time_int)
