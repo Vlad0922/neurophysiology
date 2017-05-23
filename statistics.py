@@ -121,8 +121,21 @@ def calc_bi_two(spikes):
     return (2*np.var(int_1) - np.var(int_2))/(2*e_1*e_1)
 
 
-def calc_freq_var(intervals):
-    return 100*(max(intervals) - min(intervals))/max(intervals)
+def calc_freq_var(spikes):
+    spikes = np.array(spikes)
+    res = list()
+    win_len = 5.
+    step_size = 1.
+
+    if (spikes[-1] - spikes[0])/win_len < 5:
+        win_len = (spikes[-1] - spikes[0])/5
+        step_size = win_len*0.2
+
+    for s, e in [(s, s+win_len) for s in np.arange(np.floor(spikes[0]), np.ceil(spikes[-1] - win_len)+0.01, step_size)]:
+        count = np.count_nonzero((spikes >= s)&(spikes <= e))
+        res.append(1.*count/(e-s))
+
+    return 100.*(max(res) - min(res))/max(res)
 
 
 def calc_modalirity_burst(intervals, bound=DEFAULT_MODALIRITY_BOUND):
@@ -185,7 +198,7 @@ def calc_local_variance(isi):
 
 
 def calc_burst_by_mean(intervals):
-	return np.median(intervals)/np.mean(intervals)
+    return np.median(intervals)/np.mean(intervals)
 
     
 def calc_skewness(intervals):

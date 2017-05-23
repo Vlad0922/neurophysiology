@@ -6,41 +6,42 @@ import sys
 from PyQt4.QtGui import *
 import matplotlib.pyplot as plt
 
-import openpyxl
+import xlrd
+import xlwt
+from xlutils.copy import copy
 
 def get_workbook(fname, indices, data_keys):
-    if os.path.isfile(fname):
-        wb = openpyxl.load_workbook(fname)
-    else:
-        wb = openpyxl.Workbook()
+    if not os.path.isfile(fname):
+        wb = xlwt.Workbook()
+        ws = wb.add_sheet('all_results')
+
+        headers = list(indices)
+        headers.extend(data_keys)
+
+        for idx, h in enumerate(headers):
+            ws.write(0, idx, h)
+        wb.save(fname)
     
-    row = list(indices)
-    row.extend(data_keys)
-    if 'all_results' not in wb.sheetnames:
-        ws = wb.create_sheet(0)
-        ws.title = 'all_results'
-        ws.append(row)
-    if 'oscore_results' not in wb.sheetnames:
-        ws = wb.create_sheet(1)
-        ws.title = 'oscore_results'
-        ws.append(row)
-    
-    wb.save(fname)
-    return wb   
-    
+    wb = xlrd.open_workbook(fname)
+    return wb
+
+
 
 def write_to_excel(fname, sheet, df, indices):
     data_keys = sorted(list(set(df.keys()) - set(indices)))
-    wb = get_workbook(fname, indices, data_keys)
+    rb = get_workbook(fname, indices, data_keys)
     
     row = [df[ind] for ind in indices]
     row.extend([df[ind] for ind in data_keys])
     
-    row = map(str, row)
-    
-    wb[sheet].append(row)  
-    wb.save(fname) 
-    
+    nrows = rb.sheet_by_index(0).nrows
+
+    wb = copy(rb) 
+    ws = wb.get_sheet(0) 
+    for idx, v in enumerate(row):
+        ws.write(nrows, idx, v)
+
+    wb.save(fname)    
     
 def rem_key(data, keys):
     return {k:data[k] for k in data.keys() if k not in keys}

@@ -20,31 +20,20 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
             
     if len(time_int) == 0:
         raise 'Empty filter result!'
-    
-    bi = calc_burst_index(time_int, bbh=DEFAULT_BBH, bbl=DEFAULT_BBL, brep=DEFAULT_REPEAT)
-    cv = calc_cv(time_int)
-    nu = calc_nu(time_int)
-    freq_v = calc_freq_var(time_int)
-    mod_burst = calc_modalirity_burst(time_int)
-    pause_ind = calc_pause_index(time_int)
-    pause_rat = calc_pause_ratio(time_int)
-    burst_beh = calc_burst_behavior(time_int)
-    skew = calc_skewness(time_int)
-    kurt = calc_kurtosis(time_int)
-    burst_mean = calc_burst_by_mean(time_int)
-    
+        
     df = dict()
     df['data_name'] = neuron_name
-    df['burst index'] = bi
-    df['cv'] = cv
-    df['nu'] = nu
-    df['frequency variance'] = freq_v
-    df['modalirity burst'] = mod_burst
-    df['pause index'] = pause_ind
-    df['pause ratio'] = pause_rat
-    df['skewness'] = skew
-    df['kurtoisis'] = kurt
-    df['burst_mean'] = burst_mean
+    df['burst_index'] = calc_burst_index(time_int, bbh=DEFAULT_BBH, bbl=DEFAULT_BBL, brep=DEFAULT_REPEAT)
+    df['cv'] = calc_cv(time_int)
+    df['nu'] = calc_nu(time_int)
+    df['burst_behaviour'] = calc_burst_behavior(time_int)
+    df['frequency_variance'] = calc_freq_var(data_filtered)
+    df['modalirity_burst'] = calc_modalirity_burst(time_int)
+    df['pause_index'] = calc_pause_index(time_int)
+    df['pause_ratio'] = calc_pause_ratio(time_int)
+    df['skewness'] = calc_skewness(time_int)
+    df['kurtoisis'] = calc_kurtosis(time_int)
+    df['burst_mean'] = calc_burst_by_mean(time_int)
     df['type'] = get_type(df['burst_mean'], df['cv'])
     df['doc_name'] = fname
     df['isi_mean'] = np.mean(time_int)
@@ -54,7 +43,7 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
     df['filter_length'] = (data_filtered[-1] - data_filtered[0])
     df['bi_2'] = calc_bi_two(data_filtered)
     df['lv'] = calc_local_variance(time_int)
-    df['firing_rate'] = 1.*(data_filtered[-1] - data_filtered[0])/len(data_filtered)
+    df['firing_rate'] = 1.*len(data_filtered)/df['filter_length']
     df['burst_percent'] = calc_burst_rate(time_int)
     df['interval_name'] = interval_name
     
@@ -68,7 +57,7 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
 
 def main():
     dist_dir = sys.argv[1]
-    dist_file = sys.argv[2] + '.xlsx'
+    dist_file = sys.argv[2] + '.xls'
       
     print 'main'
     for root, subdirs, files in os.walk(dist_dir):
@@ -84,7 +73,7 @@ def main():
                             spikes = np.array(st)
                             if len(spikes) > 50:
                                 df = calc_stats(spikes, 'SMR neuron dummy', f_name)
-                                write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name'])                           
+                                write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name'])   
             elif ext == 'nex':
                 r = neo.io.NeuroExplorerIO(filename=full_name)
                 blks = r.read(cascade=True, lazy=False)

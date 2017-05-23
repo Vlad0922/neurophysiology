@@ -101,7 +101,7 @@ def main():
     bi = calc_burst_index(time_int, bbh=PARAMS['bbh'], bbl=PARAMS['bbl'], brep=PARAMS['brep'])
     cv = calc_cv(time_int)
     nu = calc_nu(time_int)
-    freq_v = calc_freq_var(time_int)
+    freq_v = calc_freq_var(data_filtered)
     mod_burst = calc_modalirity_burst(time_int)
     pause_ind = calc_pause_index(time_int)
     pause_rat = calc_pause_ratio(time_int)
@@ -131,7 +131,7 @@ def main():
     df['filter_length'] = interval_len
     df['bi_2'] = calc_bi_two(data_filtered)
     df['lv'] = calc_local_variance(time_int)
-    df['firing_rate'] = 1.*(data_filtered[-1] - data_filtered[0])/len(data_filtered)
+    df['firing_rate'] = 1.*len(data_filtered)/df['filter_length']
     df['burst_rate'] = calc_burst_rate(time_int)
     
     for (osc_l, osc_h) in OSCORE_RANGE:
