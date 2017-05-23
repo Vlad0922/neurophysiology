@@ -124,12 +124,12 @@ def calc_bi_two(spikes):
 def calc_freq_var(spikes):
     spikes = np.array(spikes)
     res = list()
-    win_len = 5.
-    step_size = 1.
+    # win_len = 5.
+    # step_size = 1.
 
-    if (spikes[-1] - spikes[0])/win_len < 5:
-        win_len = (spikes[-1] - spikes[0])/5
-        step_size = win_len*0.2
+    # if (spikes[-1] - spikes[0])/win_len < 5:
+    win_len = (spikes[-1] - spikes[0])/5
+    step_size = win_len*0.2
 
     for s, e in [(s, s+win_len) for s in np.arange(np.floor(spikes[0]), np.ceil(spikes[-1] - win_len)+0.01, step_size)]:
         count = np.count_nonzero((spikes >= s)&(spikes <= e))
