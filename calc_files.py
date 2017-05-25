@@ -26,7 +26,6 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
     df['burst_index'] = calc_burst_index(time_int, bbh=DEFAULT_BBH, bbl=DEFAULT_BBL, brep=DEFAULT_REPEAT)
     df['cv'] = calc_cv(time_int)
     df['nu'] = calc_nu(time_int)
-    df['burst_behaviour'] = calc_burst_behavior(time_int)
     df['frequency_variance'] = calc_freq_var(data_filtered)
     df['modalirity_burst'] = calc_modalirity_burst(time_int)
     df['pause_index'] = calc_pause_index(time_int)
@@ -44,6 +43,7 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
     df['bi_2'] = calc_bi_two(data_filtered)
     df['lv'] = calc_local_variance(time_int)
     df['firing_rate'] = 1.*len(data_filtered)/df['filter_length']
+    df['burst_behaviour'] = calc_burst_behavior(time_int, int(np.ceil(df['firing_rate']/10)))
     df['burst_percent'] = calc_burst_rate(time_int)
     df['interval_name'] = interval_name
     

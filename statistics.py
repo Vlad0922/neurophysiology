@@ -124,12 +124,9 @@ def calc_bi_two(spikes):
 def calc_freq_var(spikes):
     spikes = np.array(spikes)
     res = list()
-    # win_len = 5.
-    # step_size = 1.
 
-    # if (spikes[-1] - spikes[0])/win_len < 5:
     win_len = (spikes[-1] - spikes[0])/5
-    step_size = win_len*0.2
+    step_size = win_len/5
 
     for s, e in [(s, s+win_len) for s in np.arange(np.floor(spikes[0]), np.ceil(spikes[-1] - win_len)+0.01, step_size)]:
         count = np.count_nonzero((spikes >= s)&(spikes <= e))
@@ -169,7 +166,7 @@ def calc_pause_ratio(intervals, bound=DEFAULT_PAUSE_RATIO_BOUND):
 
 
 # what to do with low freq data? 
-def calc_burst_behavior(intervals, bound=DEFAULT_BURST_BEHAVIOUR_BOUND):
+def calc_burst_behavior(intervals, spikes_count, bound=DEFAULT_BURST_BEHAVIOUR_BOUND):
     bound = ms_to_sec(bound)
     total_count = int(np.ceil(np.sum(intervals)/bound))
     above_count = 0
@@ -185,7 +182,7 @@ def calc_burst_behavior(intervals, bound=DEFAULT_BURST_BEHAVIOUR_BOUND):
             counter += 1
             idx += 1
 
-        if counter >= 5:
+        if counter >= spikes_count:
             above_count += 1
 
 
