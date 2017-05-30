@@ -44,7 +44,7 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
     df['lv'] = calc_local_variance(time_int)
     df['firing_rate'] = 1.*len(data_filtered)/df['filter_length']
     df['burst_behaviour'] = calc_burst_behavior(time_int, int(np.ceil(df['firing_rate']/10)))
-    df['burst_percent'] = calc_burst_rate(time_int)
+    df['burst_percent'] = calc_burst_percent(time_int)
     df['interval_name'] = interval_name
     
     for (osc_l, osc_h) in OSCORE_RANGE:
