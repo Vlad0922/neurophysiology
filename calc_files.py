@@ -72,7 +72,7 @@ def main():
                         for st in seg.spiketrains:
                             spikes = np.array(st)
                             if len(spikes) > 50:
-                                df = calc_stats(spikes, 'SMR neuron dummy', f_name)
+                                df = calc_stats(spikes, f_name, 'SMR neuron dummy', 'interval dummy')
                                 write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name'])   
             elif ext == 'nex':
                 r = neo.io.NeuroExplorerIO(filename=full_name)

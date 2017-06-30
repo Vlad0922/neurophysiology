@@ -24,18 +24,6 @@ SPIKES_RV = scipy.stats.poisson(1.)
 def calc_discharge_rate(spikes):
     return 1.*len(spikes)/(spikes[-1] - spikes[0])
 
-
-def generate_random(type):
-    if type == 'tonic':
-        return np.linspace(0, 50., 1000)
-    elif type == 'burst':
-        res = list()
-        for i in range(1, 11):
-            burst = list(np.linspace(i*10, i*10+1., 100))
-            res.extend(burst)
-        return np.array(res)
-
-
 def median_of_three_smoothing(hist):
     res = np.array(hist)
     res[0] = np.median([hist[0], hist[0], hist[1]])
@@ -100,7 +88,7 @@ def find_threshold_density(hist):
     return d
 
 
-def plot_discharge_hist(spikes, title=None, plot=False):
+def plot_discharge_hist(spikes, title=None, skewness=1., plot=False):
     spikes = np.array(spikes)
 
     t = 1./calc_discharge_rate(spikes)
@@ -116,7 +104,7 @@ def plot_discharge_hist(spikes, title=None, plot=False):
 
     hist_counts = median_of_three_smoothing(hist_counts)
 
-    if(ch2_test < 0.05 and skew_test > 1.):
+    if(ch2_test < 0.05 and skew_test > skewness):
         print 'Wow, we have bursts!'
         d = find_threshold_density(hist_counts)
 
@@ -157,16 +145,12 @@ def plot_discharge_hist(spikes, title=None, plot=False):
 
 def main():
     data_file = sys.argv[1]
+    skewness = float(sys.argv[2])
 
-    if len(sys.argv) == 3:
-        plot = (sys.argv[2] == 'plot')
+    if len(sys.argv) == 4:
+        plot = (sys.argv[3] == 'plot')
     else:
         plot = False
-
-    if data_file == 'test':
-        spikes = generate_random(sys.argv[2])
-        plot_discharge_hist(spikes, title=sys.argv[2], plot=True)
-        return
 
     r = neo.io.NeuroExplorerIO(filename=data_file)
     blks = r.read(cascade=True, lazy=False)
@@ -175,12 +159,12 @@ def main():
             for st in seg.spiketrains:
                 spikes = np.array(st)
                 if len(spikes) > 50 and not st.name.startswith('fon'):
-                    plot_discharge_hist(spikes, st.name, plot)
+                    plot_discharge_hist(spikes, st.name, skewness, plot)
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         print 'wrong usage!'
-        print 'usage: python detect_bursts.py <nex_data_file> <plot[optional]>'
+        print 'usage: python detect_bursts.py <nex_data_file> <skewness> <plot[optional]>'
         exit(1)
 
     main()
