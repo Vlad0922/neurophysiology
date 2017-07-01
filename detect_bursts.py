@@ -134,7 +134,7 @@ def find_threshold_density(hist):
     return d
 
 
-def detect_with_hist(spikes, args):
+def detect_with_vitek(spikes, args):
     spikes = np.array(spikes)
 
     t = 1./calc_discharge_rate(spikes)
@@ -176,8 +176,8 @@ def detect_with_hsmm(spikes, args):
 def main(args):
     data_file = args.data_file
 
-    if args.algorithm == 'hist':
-        detect_func = detect_with_hist
+    if args.algorithm == 'vitek':
+        detect_func = detect_with_vitek
     elif args.algorithm == 'hsmm':
         detect_func = detect_with_hsmm
     else:
