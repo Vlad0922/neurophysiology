@@ -1,0 +1,5 @@
+fit.hsmm	fitHSMM
+plot.hsmm	fitHSMM
+print.hsmm	fitHSMM
+simu.hsmm	simuHSMM
+summary.hsmm	fitHSMM

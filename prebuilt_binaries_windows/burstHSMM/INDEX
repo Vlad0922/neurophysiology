@@ -1,0 +1,3 @@
+fit.hsmm                Hidden Semi-Markov Model
+simu.hsmm               Simulate spike-trains from Hidden Semi-Markov
+                        Model
