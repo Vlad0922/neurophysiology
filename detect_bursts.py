@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+# HSMM based method described in paper "Detection of bursts in extracellular spike trains using hidden semi-Markov point process models"
+# original source code for this method found here: http://www2.stat.duke.edu/~st118/Software/burstHSMM/
+
 from __future__ import division
 
 import argparse
