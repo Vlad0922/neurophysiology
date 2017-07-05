@@ -63,8 +63,8 @@ def main():
     for root, subdirs, files in os.walk(dist_dir):
         for full_name, f_name in [(root + '\\' + f_name, f_name) for f_name in files]:
             ext = full_name[-3:].lower()
-            print full_name
             if ext == 'smr':
+                print full_name
                 r = neo.io.Spike2IO(filename=full_name)
                 blks = r.read(cascade=True, lazy=False)
                 for blk in blks:
@@ -73,8 +73,10 @@ def main():
                             spikes = np.array(st)
                             if len(spikes) > 50:
                                 df = calc_stats(spikes, f_name, 'SMR neuron dummy', 'interval dummy')
+                                df = {key:str(val) for key,val in df.items()}
                                 write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name'])   
             elif ext == 'nex':
+                print full_name
                 r = neo.io.NeuroExplorerIO(filename=full_name)
                 blks = r.read(cascade=True, lazy=False)
                 for blk in blks:
