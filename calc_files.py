@@ -69,7 +69,6 @@ def main():
     dist_dir = sys.argv[1]
     dist_file = sys.argv[2] + '.xls'
       
-    print 'main'
     for root, subdirs, files in os.walk(dist_dir):
         for full_name, f_name in [(root + '\\' + f_name, f_name) for f_name in files]:
             ext = full_name[-3:].lower()
