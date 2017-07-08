@@ -18,7 +18,7 @@ import argparse
 try:
     import matlab.engine
     eng = matlab.engine.start_matlab()
-    end.addpath('utility_scripts')
+    eng.addpath('utility_scripts')
     USE_MATLAB = True
 except:
     print 'Cannot import or start MATLAB engine, will import to .txt files...'
@@ -60,11 +60,12 @@ if __name__ == '__main__':
     quotes = args.with_quotes
     lfp_freq = args.lfp_freq
     spk_freq = args.spk_freq
+    ced_path = args.ceds_lib
 
     try:
-        load_ceds_lib(args.ceds_lib)
+        load_ceds_lib(ced_path)
     except:
-        print 'Cannot load CEDS MATLAB library by path: {}'.format(args.ceds_lib)
+        print 'Cannot load CEDS MATLAB library by path: {}'.format(ced_path)
         USE_MATLAB = False
 
     walk_res = os.walk(input_dir)
@@ -84,7 +85,7 @@ if __name__ == '__main__':
                     spk_signals = sorted(sg.name for sg in seg.analogsignals if sg.name.lower().startswith('spk'))[:OK_SIGNALS_COUNT]
                     for sg in seg.analogsignals:
                         if sg.name in lfp_signals or sg.name in spk_signals:
-                            data_dict[add_quotes(sg.name, quotes)] = matlab.double([float(v[0]) for v in np.array(sg)])
+                            data_dict[add_quotes(sg.name, quotes)] = [float(v[0]) for v in np.array(sg)]
 
             fname_no_ext = os.path.splitext(os.path.basename(fname))[0]
 
@@ -92,6 +93,9 @@ if __name__ == '__main__':
                 preproc_path = os.path.join(root, 'converted_to_smr')
                 if not os.path.exists(preproc_path):
                     os.makedirs(preproc_path)
+
+                for k, v in data_dict.items():
+                    data_dict[k] = matlab.double(v)
 
                 orig_keys = data_dict.keys()
                 for k in orig_keys:
@@ -111,5 +115,7 @@ if __name__ == '__main__':
                 df.columns = map(lambda x: x.replace(' ', '_'), df.columns.values)
 
                 df.to_csv(os.path.join(preproc_path, '{}.txt'.format(fname_no_ext)), index=False, sep='\t')
+
+            exit(1)
 
     print 'done'
