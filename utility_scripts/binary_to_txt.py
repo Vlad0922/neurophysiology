@@ -14,6 +14,15 @@ import matplotlib.pyplot as plt
 
 import argparse
 
+try:
+    import matlab.engine
+    eng = matlab.engine.start_matlab()
+    end.addpath('utility_scripts')
+    USE_MATLAB = True
+except:
+    print 'Cannot import or start MATLAB engine, will import to .txt files...'
+    USE_MATLAB = False
+
 BYTES_IN_KB = 1024
 UV_IN_VOLTS = 0.001
 FREQ = 20000
@@ -23,7 +32,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--input_dir', type=str, required=True,
                         help='Directory with binary files')
-    parser.add_argument('--cut', action='store_true', default=True,
+    parser.add_argument('--cut', action='store_true', default=False,
                         help='Cut strange artifact at the beginning?')
 
     args = parser.parse_args()
@@ -67,5 +76,5 @@ if __name__ == '__main__':
             df = df[['"Time"'] + orig_cols]
 
             df.to_csv(os.path.join(preproc_path, '{}.txt'.format(str(num))), index=False, sep='\t')
-                
+
     print 'done'
