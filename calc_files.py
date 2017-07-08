@@ -82,7 +82,7 @@ def main():
                         write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name'])   
             elif ext == 'nex':
                 print full_name
-                for st in spiketrains.iterator(neo.io.NeuroExplorerIO(filename=full_name)):
+                for st in spiketrains_iterator(neo.io.NeuroExplorerIO(filename=full_name)):
                     name_lower = st.name.lower()
                     if name_lower.startswith('fon'):
                         spikes = np.array(st)

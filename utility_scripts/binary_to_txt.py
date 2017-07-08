@@ -42,30 +42,30 @@ if __name__ == '__main__':
             num = fname[:2]
             files_by_trial[num].append(full_path)
 
-        if len(files_by_trial) != 0:
+        for num, files in files_by_trial.items():
             print 'Working with: {}'.format(root)
             preproc_path = os.path.join(root, 'converted_to_txt')
             if not os.path.exists(preproc_path):
                 os.makedirs(preproc_path)
 
-            for num, files in files_by_trial.items():
-                data_dict = dict()
-                for full_path in files:
-                    fname = os.path.basename(full_path)
-                    data = np.fromfile(full_path, dtype="<u2")*UV_IN_VOLTS
+            data_dict = dict()
+            for full_path in files:
+                fname = os.path.basename(full_path)
+                data = np.fromfile(full_path, dtype="<u2")*UV_IN_VOLTS
 
-                    if cut:
-                        data = data[int(0.2*FREQ):]
+                if cut:
+                    data = data[int(0.2*FREQ):]
 
-                    data_dict['\"{}\"'.format(fname)] = data
+                data_dict['\"{}\"'.format(fname)] = data
 
-                orig_cols = data_dict.keys()
+            orig_cols = data_dict.keys()
 
-                max_len = np.max([len(data) for data in data_dict.values()])
-                data_dict['"Time"'] = np.arange(max_len, dtype=float)/FREQ
+            max_len = np.max([len(data) for data in data_dict.values()])
+            data_dict['"Time"'] = np.arange(max_len, dtype=float)/FREQ
 
-                df = pd.DataFrame(data=data_dict)
-                df = df[['"Time"'] + orig_cols]
+            df = pd.DataFrame(data=data_dict)
+            df = df[['"Time"'] + orig_cols]
 
-                df.to_csv(os.path.join(preproc_path, '{}.txt'.format(str(num))), index=False, sep='\t')
+            df.to_csv(os.path.join(preproc_path, '{}.txt'.format(str(num))), index=False, sep='\t')
+                
     print 'done'
