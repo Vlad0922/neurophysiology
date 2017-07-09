@@ -16,7 +16,7 @@ import argparse
 
 BYTES_IN_KB = 1024
 UV_IN_VOLTS = 0.001
-FREQ = 20000
+FREQ = 20000.
 DUMMY = FREQ
 
 
@@ -108,8 +108,6 @@ if __name__ == '__main__':
 
                 fname_smr = '{}.smr'.format(str(num))
                 fullpath_smr = os.path.join(preproc_path, fname_smr)
-
-                print data_dict.keys()
 
                 eng.dict_to_smr(data_dict, fullpath_smr, FREQ, DUMMY, nargout=0)
             else:
