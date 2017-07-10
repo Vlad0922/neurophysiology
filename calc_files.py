@@ -10,9 +10,9 @@ import neo.io
 from utility import *
 from statistics import *
 from oscore import *
- 
-ISP_RANGE = [(1,3), (3,8), (8,13), (13,30), (30,100)]
-OSCORE_RANGE = [(3.,8.), (8.,12.), (12.,20.), (20.,30.), (30.,60.), (60., 90.)]
+
+ISP_RANGE = [(1, 3), (3, 8), (8, 13), (13, 30), (30, 100)]
+OSCORE_RANGE = [(3., 8.), (8., 12.), (12., 20.), (20., 30.), (30., 60.), (60., 90.)]
 
 
 def spiketrains_iterator(handler):
@@ -27,10 +27,10 @@ def spiketrains_iterator(handler):
 def calc_stats(spikes, fname, neuron_name, interval_name):
     data_filtered = spikes
     time_int = calc_intervals(spikes)
-            
+
     if len(time_int) == 0:
         raise 'Empty filter result!'
-        
+
     df = dict()
     df['data_name'] = neuron_name
     df['burst_index'] = calc_burst_index(time_int, bbh=DEFAULT_BBH, bbl=DEFAULT_BBL, brep=DEFAULT_REPEAT)
@@ -56,30 +56,31 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
     df['burst_behaviour'] = calc_burst_behavior(time_int, int(np.ceil(df['firing_rate']/10)))
     df['burst_percent'] = calc_burst_percent(time_int)
     df['interval_name'] = interval_name
-    
+
     for (osc_l, osc_h) in OSCORE_RANGE:
-        Trial = sec_to_timestamps(data_filtered, DEFAULT_FREQUENCY).tolist()
-        iTrialLength = Trial[-1]
-        oscore = oscore_spikes(np.array([Trial]), iTrialLength, osc_l, osc_h, DEFAULT_FREQUENCY)
+        trial = sec_to_timestamps(data_filtered, DEFAULT_FREQUENCY).tolist()
+        trial_len = trial[-1]
+        oscore = oscore_spikes(np.array([trial]), trial_len, osc_l, osc_h, DEFAULT_FREQUENCY)
         df['oscore_{}_{}'.format(osc_l, osc_h)] = oscore
-    
+
     return df
+
 
 def main():
     dist_dir = sys.argv[1]
     dist_file = sys.argv[2] + '.xls'
-      
+
     for root, subdirs, files in os.walk(dist_dir):
-        for full_name, f_name in [(root + '\\' + f_name, f_name) for f_name in files]:
+        for full_name, f_name in [(os.path.join(root, f_name), f_name) for f_name in files]:
             ext = full_name[-3:].lower()
             if ext == 'smr':
                 print full_name
-                for st in spiketrains_iterator(neo.io.Spike2IO(filename=full_name))
+                for st in spiketrains_iterator(neo.io.Spike2IO(filename=full_name)):
                     spikes = np.array(st)
                     if len(spikes) > 50:
                         df = calc_stats(spikes, f_name, 'SMR neuron dummy', 'interval dummy')
-                        df = {key:str(val) for key,val in df.items()}
-                        write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name'])   
+                        df = {key: str(val) for key, val in df.items()}
+                        write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
             elif ext == 'nex':
                 print full_name
                 for st in spiketrains_iterator(neo.io.NeuroExplorerIO(filename=full_name)):
@@ -91,13 +92,16 @@ def main():
                             if name_lower.startswith(int_name):
                                 for s, d in zip(interval.times, interval.durations):
                                     e = s + d
-                                    spikes_filtered = spikes[np.where( (spikes >= s) & (spikes <= e))]
+                                    spikes_filtered = spikes[np.where((spikes >= s) & (spikes <= e))]
                                     df = calc_stats(spikes_filtered, f_name, st.name, int_name)
-                                    write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])                                    
+                                    write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
                     elif name_lower.startswith('allfile'):
                         spikes = np.array(st)
-                        df = calc_stats(spikes, f_name, st.name,'allfile')
-                        write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name']) 
+                        df = calc_stats(spikes, f_name, st.name, 'allfile')
+                        write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
+
+    print 'done'
+
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
@@ -106,4 +110,3 @@ if __name__ == '__main__':
         exit(1)
 
     main()
-    print 'done'

@@ -46,7 +46,7 @@ def ms_to_sec(ms):
 
 def filter_spikes(spike_data, begin, end):
     return spike_data[(spike_data >= begin) & (spike_data <= end)]
-    
+
 
 def calc_intervals(spike_data, step=1):
     return spike_data.flat[step:] - spike_data.flat[:-step]
@@ -79,7 +79,7 @@ def calc_nu(intervals, wsize=DEFAULT_WIN_SIZE):
 
     trez = np.array([v if v > np.power(10., -10) else np.power(10., -10) for v in (tadd - tmin)])
     vasr = 1/n*(np.sum(np.log(1.*n/(2*m)*trez)))+bi2_vas
-    
+
     vasrnu = vasr-np.log(int_mean)
 
     return vasrnu
@@ -129,7 +129,7 @@ def calc_freq_var(spikes):
     step_size = win_len/5
 
     for s, e in [(s, s+win_len) for s in np.arange(np.floor(spikes[0]), np.ceil(spikes[-1] - win_len)+0.01, step_size)]:
-        count = np.count_nonzero((spikes >= s)&(spikes <= e))
+        count = np.count_nonzero((spikes >= s) & (spikes <= e))
         res.append(1.*count/(e-s))
 
     return 100.*(max(res) - min(res))/max(res)
@@ -165,7 +165,6 @@ def calc_pause_ratio(intervals, bound=DEFAULT_PAUSE_RATIO_BOUND):
         return above/below
 
 
-# what to do with low freq data? 
 def calc_burst_behavior(intervals, spikes_count, bound=DEFAULT_BURST_BEHAVIOUR_BOUND):
     bound = ms_to_sec(bound)
     total_count = int(np.ceil(np.sum(intervals)/bound))
@@ -185,7 +184,6 @@ def calc_burst_behavior(intervals, spikes_count, bound=DEFAULT_BURST_BEHAVIOUR_B
         if counter >= spikes_count:
             above_count += 1
 
-
     return above_count/total_count
 
 
@@ -197,7 +195,7 @@ def calc_local_variance(isi):
 def calc_burst_by_mean(intervals):
     return np.median(intervals)/np.mean(intervals)
 
-    
+
 def calc_skewness(intervals):
     return skew(intervals)
 
@@ -205,7 +203,7 @@ def calc_skewness(intervals):
 def calc_kurtosis(intervals):
     return kurtosis(intervals, fisher=False)
 
-    
+
 def get_type(med_mean, cv):
     if med_mean < 0.7:
         return 'burst'
@@ -219,9 +217,9 @@ def calc_isp(isi, hz_low, hz_high):
     f, Pxx_den = periodogram(isi, DEFAULT_FREQUENCY)
     idx_low = idx_of_nearest(f, hz_low)
     idx_high = idx_of_nearest(f, hz_high)
-    
+
     return np.trapz(Pxx_den[idx_low:idx_high+1])
-    
+
 
 def calc_burst_percent(isi):
     isi = np.array(isi)

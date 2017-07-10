@@ -139,15 +139,12 @@ def main():
         iTrialLength = Trial[-1]
         oscore = oscore_spikes(np.array([Trial]), iTrialLength, osc_l, osc_h, PARAMS['frequency'])
         df['oscore_{}_{}'.format(osc_l, osc_h)] = oscore
-
-    #for (isp_l, isp_h) in ISP_RANGE:
-    #    df['ISP_{}_{}'.format(isp_l, isp_h)] = calc_isp(time_int, isp_l, isp_h)
     
     write_to_excel(PARAMS['file_path'], 'all_results', df, ['doc_name', 'data_name'])
     for key in df.keys():
         df[key] = [df[key]]
     
-    #draw_table(df)
+    draw_table(df)
     print 'done'
             
             

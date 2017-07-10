@@ -30,7 +30,6 @@ except:
 BYTES_IN_KB = 1024
 UV_IN_VOLTS = 0.001
 OK_SIGNALS_COUNT = 3
-KNOWN_TYPES = ('*.map', '*.dat')
 
 
 def load_ceds_lib(lib_path):
