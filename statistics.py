@@ -8,8 +8,10 @@ from scipy.special import psi
 from scipy.stats import variation, kurtosis, skew
 from scipy.signal import periodogram
 
-FILTER_TIME = 1
-FILTER_NUMBER = 0
+from oscore import *
+
+import copy
+
 
 DEFAULT_BBH = 0.016
 DEFAULT_BBL = 0.01
@@ -17,13 +19,14 @@ DEFAULT_WIN_SIZE = 13
 DEFAULT_REPEAT = 3
 DEFAULT_FILT_LOWER = -1
 DEFAULT_FILT_UPPER = -1
-DEFAULT_FILT_TYPE = FILTER_TIME
 DEFAULT_PAUSE_INDEX_BOUND = 50
 DEFAULT_MODALIRITY_BOUND = 10
 DEFAULT_PAUSE_RATIO_BOUND = 50
 DEFAULT_BURST_BEHAVIOUR_BOUND = 100
 DEFAULT_STEP = 1
 DEFAULT_FREQUENCY = 1000.
+
+OSCORE_RANGE = [(3., 8.), (8., 12.), (12., 20.), (20., 30.), (30., 60.), (60., 90.)]
 
 
 def idx_of_nearest(arr, val):
@@ -224,3 +227,70 @@ def calc_isp(isi, hz_low, hz_high):
 def calc_burst_percent(isi):
     isi = np.array(isi)
     return 1.*np.count_nonzero(isi > np.mean(isi))/len(isi)
+
+def calc_mean_isi_in_burst(bursts):
+    isi = list()
+    for b in bursts:
+        isi.extend(np.ediff1d(b).tolist())
+
+    if len(isi) != 0:
+        return np.mean(isi)
+    else:
+        return 1.
+
+def calc_median_isi_in_burst(bursts):
+    isi = list()
+    for b in bursts:
+        isi.extend(np.ediff1d(b).tolist())
+
+    if len(isi) != 0:
+        return np.median(isi)
+    else:
+        return 1.
+
+
+def calc_interburst_interval(bursts):
+    if len(bursts) < 2:
+        print 'We have less then two bursts, dude...'
+        return 0.
+    
+    return np.mean([bursts[i][~0] - bursts[i-1][~0]  for i in range(1, len(bursts))])
+
+
+def calc_mean_spikes_in_burst(bursts):
+    if len(bursts) != 0:
+        return np.mean([len(b) for b in bursts])
+    else:
+        return 0
+
+        trial = sec_to_timestamps(data_filtered, DEFAULT_FREQUENCY).tolist()
+        trial_len = trial[-1]
+        oscore = oscore_spikes(np.array([trial]), trial_len, osc_l, osc_h, DEFAULT_FREQUENCY)
+        df['oscore_{}_{}'.format(osc_l, osc_h)] = oscore
+
+
+def calc_oscore_for_bursts(bursts):
+    res = dict()
+
+    if len(bursts)  == 0:
+        for (osc_l, osc_h) in OSCORE_RANGE:
+            res['burst_oscore_{}_{}'.format(osc_l, osc_h)] = 0.
+        
+        return res
+
+
+    timestamps = np.array([sec_to_timestamps(np.array(b) - min(b) + 0.01, DEFAULT_FREQUENCY) for b in bursts])
+    trial_len = max([t[~0] for t in timestamps])
+    
+    for (osc_l, osc_h) in OSCORE_RANGE:
+        if len(timestamps) != 0:
+            try:
+                oscore = oscore_spikes(timestamps, trial_len, osc_l, osc_h, DEFAULT_FREQUENCY)
+            except:
+                oscore = 0.
+        else:
+            oscore = 0.
+
+        res['burst_oscore_{}_{}'.format(osc_l, osc_h)] = oscore
+
+    return res

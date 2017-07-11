@@ -8,7 +8,6 @@ from __future__ import division
 import argparse
 
 import os
-import sys
 
 import numpy as np
 import scipy.stats
@@ -25,6 +24,8 @@ except:
     print 'using oldschool matplotlib'
 
 import neo.io
+
+import rank_surprise
 
 get_probs_func_str = 'get_probs_hsmm <- function(out)                           \n\
                         {                                                       \n\
@@ -68,7 +69,7 @@ def plot_spikes(spikes, burst_spikes):
 
 
 def calc_discharge_rate(spikes):
-    return 1.*len(spikes)/(spikes[-1] - spikes[0])
+    return 1.*len(spikes)/(spikes[~0] - spikes[0])
 
 
 def median_of_three_smoothing(hist):
@@ -137,12 +138,26 @@ def find_threshold_density(hist):
     return d
 
 
+def find_burst_bunches(spikes, burst_mask):
+    res = list()
+    curr = list()
+    for i in range(burst_mask.shape[0]):
+        if burst_mask[i]:
+            curr.append(spikes[i])
+        else:
+            if len(curr) != 0:
+                res.append(curr)
+            curr = list()
+    
+    return res
+
+
 def detect_with_vitek(spikes, args):
     spikes = np.array(spikes)
 
     t = 1./calc_discharge_rate(spikes)
 
-    bins = np.arange(spikes[0],  spikes[-1]+t, t)
+    bins = np.arange(spikes[0],  spikes[~0] + t, t)
     hist_counts = np.bincount(np.histogram(spikes, bins)[0])
     count_values = list(range(len(hist_counts)))
 
@@ -150,6 +165,8 @@ def detect_with_vitek(spikes, args):
     skew_test = scipy.stats.skew(hist_counts)
 
     hist_counts = median_of_three_smoothing(hist_counts)
+
+    print ch2_test, skew_test
 
     if(ch2_test < 0.05 and skew_test > args.skewness):
         d = find_threshold_density(hist_counts)
@@ -176,13 +193,28 @@ def detect_with_hsmm(spikes, args):
     return find_burst_spikes(spikes, np.array(probs > args.prob_threshold), args.min_spike_count)
 
 
+def detect_with_rs(spikes, args):
+    spikes = np.array(spikes)
+    start, length, RS = rank_surprise.burst(spikes, limit=50e-3, RSalpha=1.)
+
+    burst_spikes = np.zeros(spikes.shape[0])
+    for s, l in zip(start, length):
+        e = s + l
+        burst_spikes[s:e] = True
+
+    return burst_spikes
+
+
 def main(args):
     data_file = args.data_file
+    algo = args.algorithm
 
-    if args.algorithm == 'vitek':
+    if algo == 'vitek':
         detect_func = detect_with_vitek
-    elif args.algorithm == 'hsmm':
+    elif algo == 'hsmm':
         detect_func = detect_with_hsmm
+    elif algo == 'rs':
+        detect_func = detect_with_rs
     else:
         raise 'Unkown detect algorithm!'
 

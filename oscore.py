@@ -8,13 +8,13 @@ DEFAULT_FREQ = 1./1000
 # TODO: REFACTOR IT
 # I would have fired the man who wrote it..this is terrible code
 
-def OScoreAC(AutoCorrelogram, LowBoundFrequency, HighBoundFrequency, SamplingFrequency):
+def OScoreAC(AutoCorrelogram, low_bound, high_bound, freq):
     CorrelogramSize = len(AutoCorrelogram)
     HalfCorrelogramSize = int(np.floor(CorrelogramSize/2)+1)
 
     MirroredAutoCorrelogram = np.flipud(AutoCorrelogram)
 
-    KernelSTD = min(2, 134.0/(1.5*HighBoundFrequency)) * (SamplingFrequency/1000.0)
+    KernelSTD = min(2, 134.0/(1.5*high_bound)) * (freq/1000.0)
     GaussianKernel = np.array([1/(np.sqrt(2*np.pi)*KernelSTD)*np.exp(-1.*i*i/(2.0*KernelSTD*KernelSTD))\
                                for i in range(-int(np.round(3*KernelSTD)), int(np.round(3*KernelSTD))+1)])
  
@@ -22,7 +22,7 @@ def OScoreAC(AutoCorrelogram, LowBoundFrequency, HighBoundFrequency, SamplingFre
     HighSmoothedAutoCorrelogram = np.convolve(PaddedAutoCorrelogram, GaussianKernel, 'same')
     HighSmoothedAutoCorrelogram = HighSmoothedAutoCorrelogram[len(GaussianKernel):-len(GaussianKernel)]
 
-    KernelSTD =  2 * 134.0/(1.5*LowBoundFrequency) * (SamplingFrequency/1000.0)
+    KernelSTD =  2 * 134.0/(1.5*low_bound) * (freq/1000.0)
     GaussianKernel = np.array([1/(np.sqrt(2*np.pi)*KernelSTD)*np.exp(-1.*i*i/(2.0*KernelSTD*KernelSTD))\
                                for i in range(-int(np.round(3*KernelSTD)), int(np.round(3*KernelSTD))+1)])
 
@@ -58,14 +58,14 @@ def OScoreAC(AutoCorrelogram, LowBoundFrequency, HighBoundFrequency, SamplingFre
     Spectrum = Spectrum[:SpectrumSize]
     SpectrumIntegral = np.mean(Spectrum)
 
-    LowFrequencyIndex = int(np.round(LowBoundFrequency * SpectrumSize/(SamplingFrequency/2)))
-    HighFrequencyIndex = int(np.round(HighBoundFrequency * SpectrumSize/(SamplingFrequency/2)))
+    LowFrequencyIndex = int(np.round(low_bound * SpectrumSize/(freq/2)))
+    HighFrequencyIndex = int(np.round(high_bound * SpectrumSize/(freq/2)))
     PeakFreqVal = np.max(Spectrum[LowFrequencyIndex:HighFrequencyIndex+1])
     PeakFreqIndex = np.where(Spectrum == PeakFreqVal)[0][0]
 
     if(SpectrumIntegral > 0):
         OscScore = PeakFreqVal / SpectrumIntegral;
-        OscFreq = ((PeakFreqIndex-1+LowFrequencyIndex-1) * (SamplingFrequency/2))/SpectrumSize
+        OscFreq = ((PeakFreqIndex-1+LowFrequencyIndex-1) * (freq/2))/SpectrumSize
     else:
         OscScore = -1; 
     
@@ -119,21 +119,20 @@ def crosscorrelation(x, y, maxlag):
     return T.dot(px)
 
 
-def oscore_spikes(SpikeTimesPerTrials, TrialLength, LowBoundFrequency, HighBoundFrequency, SamplingFrequency):
-    CorrelationWindow = int(np.floor(np.power(2, np.ceil(max(np.log2(3*SamplingFrequency/LowBoundFrequency),np.log2(SamplingFrequency/4.0))))))
-    AutoCorrelogramSize = 2 * CorrelationWindow + 1
+def oscore_spikes(spikes_per_trials, trial_len, low_bound, high_bound, freq):
+    corr_window = int(np.floor(np.power(2, np.ceil(max(np.log2(3*freq/low_bound), np.log2(freq/4.0))))))
+    autocorr_size = 2 * corr_window + 1
 
-    TrialCount = len(SpikeTimesPerTrials)
-    TrialAutoCorrelograms = np.zeros((TrialCount,AutoCorrelogramSize))
-    TrialOScores = np.zeros(TrialCount)
+    trial_count = len(spikes_per_trials)
+    auto_cors = np.zeros((trial_count, autocorr_size))
+    triels_oscores = np.zeros(trial_count)
 
-    for i in range(TrialCount):
-        Trial = np.zeros(TrialLength)
-        Trial[SpikeTimesPerTrials[i]-1] = 1
-        TrialAutoCorrelograms[i,:] = crosscorrelation(Trial, Trial, CorrelationWindow)
-        TrialOScores[i] = OScoreAC(TrialAutoCorrelograms[i,:], LowBoundFrequency, HighBoundFrequency, SamplingFrequency)
+    for i in range(trial_count):
+        trial = np.zeros(trial_len)
+        trial[spikes_per_trials[i]-1] = 1
+        auto_cors[i,:] = crosscorrelation(trial, trial, corr_window)
+        triels_oscores[i] = OScoreAC(auto_cors[i,:], low_bound, high_bound, freq)
 
-    AutoCorrelogram = np.sum(TrialAutoCorrelograms, axis=0)
+    autocor = np.sum(auto_cors, axis=0)
 
-    OSc = OScoreAC(AutoCorrelogram, LowBoundFrequency, HighBoundFrequency, SamplingFrequency)
-    return OSc
+    return OScoreAC(autocor, low_bound, high_bound, freq)

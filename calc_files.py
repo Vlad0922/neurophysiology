@@ -11,8 +11,11 @@ from utility import *
 from statistics import *
 from oscore import *
 
+import argparse
+
+from detect_bursts import detect_with_rs, find_burst_bunches
+
 ISP_RANGE = [(1, 3), (3, 8), (8, 13), (13, 30), (30, 100)]
-OSCORE_RANGE = [(3., 8.), (8., 12.), (12., 20.), (20., 30.), (30., 60.), (60., 90.)]
 
 
 def spiketrains_iterator(handler):
@@ -59,16 +62,29 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
 
     for (osc_l, osc_h) in OSCORE_RANGE:
         trial = sec_to_timestamps(data_filtered, DEFAULT_FREQUENCY).tolist()
-        trial_len = trial[-1]
+        trial_len = trial[~0]
         oscore = oscore_spikes(np.array([trial]), trial_len, osc_l, osc_h, DEFAULT_FREQUENCY)
         df['oscore_{}_{}'.format(osc_l, osc_h)] = oscore
+
+    burst_args = dict({'prob_threshold': 0.75, 'min_spike_count': 4})
+    burst_mask = detect_with_rs(spikes, burst_args)
+    burst_bunches = find_burst_bunches(spikes, burst_mask)
+
+    df['burst_spike_percent'] = 1.*np.sum(burst_mask)/len(spikes)
+    df['mean_spikes_in_burst'] = calc_mean_spikes_in_burst(burst_bunches)
+    df['mean_isi_in_burst'] = calc_mean_isi_in_burst(burst_bunches)
+    df['median_isi_in_burst'] = calc_median_isi_in_burst(burst_bunches)
+    df['interburst_interval'] = calc_interburst_interval(burst_bunches)
+
+    bursts_oscore = calc_oscore_for_bursts(burst_bunches)
+    df.update(bursts_oscore)
 
     return df
 
 
-def main():
-    dist_dir = sys.argv[1]
-    dist_file = sys.argv[2] + '.xls'
+def main(args):
+    dist_dir = args.input_dir
+    dist_file = '{}.xls'.format(args.dist_file)
 
     for root, subdirs, files in os.walk(dist_dir):
         for full_name, f_name in [(os.path.join(root, f_name), f_name) for f_name in files]:
@@ -83,30 +99,37 @@ def main():
                         write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
             elif ext == 'nex':
                 print full_name
-                for st in spiketrains_iterator(neo.io.NeuroExplorerIO(filename=full_name)):
-                    name_lower = st.name.lower()
-                    if name_lower.startswith('fon'):
-                        spikes = np.array(st)
-                        for interval in seg.epochs:
-                            int_name = interval.annotations['channel_name'].lower()
-                            if name_lower.startswith(int_name):
-                                for s, d in zip(interval.times, interval.durations):
-                                    e = s + d
-                                    spikes_filtered = spikes[np.where((spikes >= s) & (spikes <= e))]
-                                    df = calc_stats(spikes_filtered, f_name, st.name, int_name)
-                                    write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
-                    elif name_lower.startswith('allfile'):
-                        spikes = np.array(st)
-                        df = calc_stats(spikes, f_name, st.name, 'allfile')
-                        write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
+                r = neo.io.NeuroExplorerIO(filename=full_name)
+                for blk in r.read(cascade=True, lazy=False):
+                    for seg in blk.segments:
+                        for st in seg.spiketrains:
+                            name_lower = st.name.lower()
+                            if name_lower.startswith('fon'):
+                                spikes = np.array(st)
+                                for interval in seg.epochs:
+                                    int_name = interval.annotations['channel_name'].lower()
+                                    if name_lower.startswith(int_name):
+                                        for s, d in zip(interval.times, interval.durations):
+                                            e = s + d
+                                            spikes_filtered = spikes[np.where((spikes >= s) & (spikes <= e))]
+                                            df = calc_stats(spikes_filtered, f_name, st.name, int_name)
+                                            write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
+                            elif name_lower.startswith('allfile'):
+                                spikes = np.array(st)
+                                df = calc_stats(spikes, f_name, st.name, 'allfile')
+                                write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
 
     print 'done'
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        print 'Wrong usage!'
-        print 'Usage: python calc_files.py <directory> <result_fname>'
-        exit(1)
+    parser = argparse.ArgumentParser(description='Detect bursts in spike data')
 
-    main()
+    parser.add_argument('--input_dir', type=str, required=True,
+                        help='Input directory')
+    parser.add_argument('--dist_file', type=str, required=True,
+                        help='File with results')
+
+    args = parser.parse_args()
+
+    main(args)
