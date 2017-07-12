@@ -161,17 +161,17 @@ def detect_with_vitek(spikes, args):
     hist_counts = np.bincount(np.histogram(spikes, bins)[0])
     count_values = list(range(len(hist_counts)))
 
+    hist_counts = median_of_three_smoothing(hist_counts)
+
     ch2_test = scipy.stats.chisquare(hist_counts, SPIKES_RV.pmf(count_values)*len(spikes))[1]
     skew_test = scipy.stats.skew(hist_counts)
-
-    hist_counts = median_of_three_smoothing(hist_counts)
 
     print ch2_test, skew_test
 
     if(ch2_test < 0.05 and skew_test > args.skewness):
         d = find_threshold_density(hist_counts)
 
-        isi_t = t/d
+        isi_t = t/(d-1)
         isi = np.ediff1d(spikes)
         burst_isi = np.array(isi <= isi_t)
 
@@ -218,7 +218,11 @@ def main(args):
     else:
         raise 'Unkown detect algorithm!'
 
-    r = neo.io.NeuroExplorerIO(filename=data_file)
+    ext = data_file[-3:].lower()
+    if ext == 'nex':
+        r = neo.io.NeuroExplorerIO(filename=data_file)
+    elif ext == 'smr':
+        r = neo.io.Spike2IO(filename=data_file)
     blks = r.read(cascade=True, lazy=False)
     for blk in blks:
         for seg in blk.segments:
@@ -244,7 +248,7 @@ if __name__ == '__main__':
                         help='probability threshold for hsmm algorithm')
     parser.add_argument('--plot', action='store_true', default=False,
                         help='Plot burst and non burst spikes?')
-    parser.add_argument('--min_spike_count', type=int, default=3,
+    parser.add_argument('--min_spike_count', type=int, default=2,
                         help='Min spike count for burst bunch')
 
     args = parser.parse_args()
