@@ -263,11 +263,6 @@ def calc_mean_spikes_in_burst(bursts):
     else:
         return 0
 
-        trial = sec_to_timestamps(data_filtered, DEFAULT_FREQUENCY).tolist()
-        trial_len = trial[-1]
-        oscore = oscore_spikes(np.array([trial]), trial_len, osc_l, osc_h, DEFAULT_FREQUENCY)
-        df['oscore_{}_{}'.format(osc_l, osc_h)] = oscore
-
 
 def calc_oscore_for_bursts(bursts):
     res = dict()

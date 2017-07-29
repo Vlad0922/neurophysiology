@@ -15,7 +15,7 @@ from oscore import *
 
 import argparse
 
-from detect_bursts import detect_with_rs, find_burst_bunches, detect_with_vitek
+from detect_bursts import detect_with_logisi, find_burst_bunches
 
 
 
@@ -75,8 +75,7 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
         df['oscore_{}_{}'.format(osc_l, osc_h)] = oscore
 
     burst_args = dict_to_tuple({'skewness': 0.75, 'min_spike_count': 4})
-    burst_mask = detect_with_vitek(spikes, burst_args)
-    burst_bunches = find_burst_bunches(spikes, burst_mask)
+    burst_mask, burst_bunches = detect_with_logisi(spikes, burst_args)
 
     df['burst_spike_percent'] = 1.*np.sum(burst_mask)/len(spikes)
     df['mean_spikes_in_burst'] = calc_mean_spikes_in_burst(burst_bunches)
@@ -91,7 +90,7 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
 
 
 def main(args):
-    dist_dir = args.input_dir
+    dist_dir = args.data_dir
     dist_file = '{}.xls'.format(args.dist_file)
 
     for root, subdirs, files in os.walk(dist_dir):
@@ -135,7 +134,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Detect bursts in spike data')
 
-    parser.add_argument('--input_dir', type=str, required=True,
+    parser.add_argument('--data_dir', type=str, required=True,
                         help='Input directory')
     parser.add_argument('--dist_file', type=str, required=True,
                         help='File with results')

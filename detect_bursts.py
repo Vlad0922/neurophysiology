@@ -11,12 +11,15 @@ import os
 
 import numpy as np
 import scipy.stats
+import pandas as pd
 
 import matplotlib.pyplot as plt
 
 from rpy2.robjects.packages import importr
 import rpy2.robjects as ro
 from rpy2.robjects import FloatVector
+from rpy2.robjects import pandas2ri
+pandas2ri.activate()
 
 try:
     import seaborn as sns
@@ -41,10 +44,9 @@ get_probs_func_str = 'get_probs_hsmm <- function(out)                           
                           return(p.states)                                      \n\
                         }'
 
-
-importr('burstHSMM')
+importr('pracma')
 ro.r(get_probs_func_str)
-
+ro.r('source("logisi.R")')
 
 SPIKES_RV = scipy.stats.poisson(1.)
 
@@ -205,6 +207,31 @@ def detect_with_rs(spikes, args):
     return burst_spikes
 
 
+def detect_with_logisi(spikes, args):
+    spikes_r = ro.FloatVector(spikes)
+
+    ro.r.assign('spikes', spikes_r)
+    res = pd.DataFrame(ro.r('data.frame(logisi.pasq.method(spikes))'))
+
+    burst_spikes = np.zeros(spikes.shape[0])
+
+    try:
+        idx = zip(map(int, res['beg']), map(int, res['end']))
+
+        for s, e in idx:
+            s -= 1
+            burst_spikes[s:e] = True
+
+        burst_bunches = list()
+        for s, e in idx:
+            s -= 1
+            burst_bunches.append(np.array(spikes[s:e]))
+
+        return burst_spikes, burst_bunches
+    except:
+        return burst_spikes, []
+
+
 def main(args):
     data_file = args.data_file
     algo = args.algorithm
@@ -215,6 +242,8 @@ def main(args):
         detect_func = detect_with_hsmm
     elif algo == 'rs':
         detect_func = detect_with_rs
+    elif algo == 'logisi':
+        detect_func = detect_with_logisi
     else:
         raise 'Unkown detect algorithm!'
 
@@ -229,7 +258,7 @@ def main(args):
             for st in seg.spiketrains:
                 spikes = np.array(st)
                 if len(spikes) > 50:
-                    burst_idx = detect_func(spikes, args)
+                    burst_idx, bunches = detect_func(spikes, args)
 
                     if args.plot:
                         plot_spikes(spikes, burst_idx)
