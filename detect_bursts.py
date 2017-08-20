@@ -211,7 +211,7 @@ def detect_with_logisi(spikes, args):
     spikes_r = ro.FloatVector(spikes)
 
     ro.r.assign('spikes', spikes_r)
-    res = pd.DataFrame(ro.r('data.frame(logisi.pasq.method(spikes))'))
+    res = pd.DataFrame(ro.r('data.frame(logisi.pasq.method(spikes, cutoff={}))'.format(args.logisi_cutoff)))
 
     burst_spikes = np.zeros(spikes.shape[0])
 

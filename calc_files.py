@@ -7,6 +7,9 @@ import os
 
 from collections import namedtuple
 
+sys.path.insert(0, 'custom_filereader')
+import nex_5_reader
+
 import neo.io
 
 from utility import *
@@ -27,10 +30,14 @@ def dict_to_tuple(dictionary):
 
 
 def spiketrains_iterator(handler):
+    # try:
     for blk in handler.read(cascade=True, lazy=False):
         for seg in blk.segments:
             for st in seg.spiketrains:
                 yield st
+    # except:
+    #     print 'Something wrong with file:'.format(handler.filename)
+    #     raise StopIteration
 
     raise StopIteration
 
@@ -74,7 +81,7 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
         oscore = oscore_spikes(np.array([trial]), trial_len, osc_l, osc_h, DEFAULT_FREQUENCY)
         df['oscore_{}_{}'.format(osc_l, osc_h)] = oscore
 
-    burst_args = dict_to_tuple({'skewness': 0.75, 'min_spike_count': 4})
+    burst_args = dict_to_tuple({'skewness': 0.75, 'min_spike_count': 4, 'logisi_cutoff':0.1})
     burst_mask, burst_bunches = detect_with_logisi(spikes, burst_args)
 
     df['burst_spike_percent'] = 1.*np.sum(burst_mask)/len(spikes)
@@ -95,7 +102,9 @@ def main(args):
 
     for root, subdirs, files in os.walk(dist_dir):
         for full_name, f_name in [(os.path.join(root, f_name), f_name) for f_name in files]:
+            patient = full_name.split(os.sep)[3]
             ext = full_name[-3:].lower()
+
             if ext == 'smr':
                 print full_name
                 for st in spiketrains_iterator(neo.io.Spike2IO(filename=full_name)):
@@ -103,6 +112,7 @@ def main(args):
                     if len(spikes) > 50:
                         df = calc_stats(spikes, f_name, 'SMR neuron dummy', 'interval dummy')
                         df = {key: str(val) for key, val in df.items()}
+                        df['patient'] = patient
                         write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
             elif ext == 'nex':
                 print full_name
@@ -121,11 +131,13 @@ def main(args):
                                             spikes_filtered = spikes[np.where((spikes >= s) & (spikes <= e))]
                                             if len(spikes_filtered) > 50:
                                                 df = calc_stats(spikes_filtered, f_name, st.name, int_name)
+                                                df['patient'] = patient
                                                 write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
                             elif name_lower.startswith('allfile'):
                                 spikes = np.array(st)
                                 if len(spikes) > 50:                                    
                                     df = calc_stats(spikes, f_name, st.name, 'allfile')
+                                    df['patient'] = patient
                                     write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
 
     print 'done'

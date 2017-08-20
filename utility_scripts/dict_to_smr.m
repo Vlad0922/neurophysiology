@@ -1,5 +1,5 @@
 function dict_to_smr(data, fname, spk_freq, lfp_freq)
-fhand = CEDS64Create( fname, 32, 1 );
+fhand = CEDS64Create( fname, 32, 0 );
 CEDS64TimeBase( fhand, 1./spk_freq );
 
 names = fieldnames(data);
@@ -16,5 +16,5 @@ for i = 1:length(names)
     CEDS64ChanUnits( fhand, i, 'V' );
 end
 
-CEDS64CloseAll();
+CEDS64Close(fhand);
 end
