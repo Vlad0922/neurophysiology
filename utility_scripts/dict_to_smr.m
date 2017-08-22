@@ -6,7 +6,7 @@ names = fieldnames(data);
 
 for i = 1:length(names)
     curr_name = char(names(i));
-    if startsWith(curr_name, 'lfp', 'IgnoreCase', true)
+    if strcmpi(curr_name(1:3), 'lfp')
         CEDS64SetWaveChan( fhand, i, 32, 9, lfp_freq );  
     else
         CEDS64SetWaveChan( fhand, i, 1, 9, spk_freq);
