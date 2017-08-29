@@ -5,11 +5,6 @@ from __future__ import division
 import sys
 import os
 
-from collections import namedtuple
-
-sys.path.insert(0, 'custom_filereader')
-import nex_5_reader
-
 import neo.io
 
 from utility import *
@@ -109,7 +104,7 @@ def main(args):
                 print full_name
                 for st in spiketrains_iterator(neo.io.Spike2IO(filename=full_name)):
                     spikes = np.array(st)
-                    if len(spikes) > 50:
+                    if len(spikes) > 40 and (spikes[~0] - spikes[0] > 5.):
                         df = calc_stats(spikes, f_name, 'SMR neuron dummy', 'interval dummy')
                         df = {key: str(val) for key, val in df.items()}
                         df['patient'] = patient
@@ -129,13 +124,13 @@ def main(args):
                                         for s, d in zip(interval.times, interval.durations):
                                             e = s + d
                                             spikes_filtered = spikes[np.where((spikes >= s) & (spikes <= e))]
-                                            if len(spikes_filtered) > 50:
+                                            if len(spikes_filtered) > 40 and (spikes_filtered[~0] - spikes_filtered[0]) > 5.:
                                                 df = calc_stats(spikes_filtered, f_name, st.name, int_name)
                                                 df['patient'] = patient
                                                 write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
                             elif name_lower.startswith('allfile'):
                                 spikes = np.array(st)
-                                if len(spikes) > 50:                                    
+                                if len(spikes) > 40 (spikes[~0] - spikes[0] > 5.):                                    
                                     df = calc_stats(spikes, f_name, st.name, 'allfile')
                                     df['patient'] = patient
                                     write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
