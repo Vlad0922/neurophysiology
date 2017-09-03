@@ -13,8 +13,10 @@ from oscore import *
 
 import argparse
 
-from detect_bursts import detect_with_logisi, find_burst_bunches
+from detect_bursts import detect_with_logisi, find_burst_bunches, detect_with_ps
 
+
+from collections import namedtuple
 
 
 ISP_RANGE = [(1, 3), (3, 8), (8, 13), (13, 30), (30, 100)]
@@ -25,14 +27,10 @@ def dict_to_tuple(dictionary):
 
 
 def spiketrains_iterator(handler):
-    # try:
     for blk in handler.read(cascade=True, lazy=False):
         for seg in blk.segments:
             for st in seg.spiketrains:
                 yield st
-    # except:
-    #     print 'Something wrong with file:'.format(handler.filename)
-    #     raise StopIteration
 
     raise StopIteration
 
@@ -76,9 +74,11 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
         oscore = oscore_spikes(np.array([trial]), trial_len, osc_l, osc_h, DEFAULT_FREQUENCY)
         df['oscore_{}_{}'.format(osc_l, osc_h)] = oscore
 
-    burst_args = dict_to_tuple({'skewness': 0.75, 'min_spike_count': 4, 'logisi_cutoff':0.1})
-    burst_mask, burst_bunches = detect_with_logisi(spikes, burst_args)
+    burst_args = dict_to_tuple({'skewness': 0.75, 'min_spike_count': 4, 'logisi_cutoff':0.1, 'si_threshold':3})
+    burst_mask, burst_bunches, burst_lens = detect_with_ps(spikes, burst_args)
 
+    df['mean_burst_len'] = np.mean(burst_lens)
+    df['ratio_burst_time'] = 1.*sum(burst_lens)/(spikes[~0] - spikes[0])
     df['burst_spike_percent'] = 1.*np.sum(burst_mask)/len(spikes)
     df['mean_spikes_in_burst'] = calc_mean_spikes_in_burst(burst_bunches)
     df['mean_isi_in_burst'] = calc_mean_isi_in_burst(burst_bunches)
@@ -130,7 +130,7 @@ def main(args):
                                                 write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
                             elif name_lower.startswith('allfile'):
                                 spikes = np.array(st)
-                                if len(spikes) > 40 (spikes[~0] - spikes[0] > 5.):                                    
+                                if len(spikes) > 40 and (spikes[~0] - spikes[0] > 5.):                                    
                                     df = calc_stats(spikes, f_name, st.name, 'allfile')
                                     df['patient'] = patient
                                     write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
@@ -145,6 +145,7 @@ if __name__ == '__main__':
                         help='Input directory')
     parser.add_argument('--dist_file', type=str, required=True,
                         help='File with results')
+    parser.add_argument('--si_thresh', type=float, help='S parameter for PS method')
 
     args = parser.parse_args()
 

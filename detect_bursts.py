@@ -13,6 +13,8 @@ import numpy as np
 import scipy.stats
 import pandas as pd
 
+
+
 import matplotlib.pyplot as plt
 
 from rpy2.robjects.packages import importr
@@ -21,6 +23,8 @@ from rpy2.robjects import FloatVector
 from rpy2.robjects import pandas2ri
 pandas2ri.activate()
 
+import rgs
+
 try:
     import seaborn as sns
 except:
@@ -28,7 +32,7 @@ except:
 
 import neo.io
 
-import rank_surprise
+# import rank_surprise  
 
 get_probs_func_str = 'get_probs_hsmm <- function(out)                           \n\
                         {                                                       \n\
@@ -45,8 +49,10 @@ get_probs_func_str = 'get_probs_hsmm <- function(out)                           
                         }'
 
 importr('pracma')
-ro.r(get_probs_func_str)
-ro.r('source("logisi.R")')
+importr('sjemea')
+# ro.r(get_probs_func_str)
+# ro.r('source("logisi.R")')
+ro.r('source("3rdparty/PS_method.R")')
 
 SPIKES_RV = scipy.stats.poisson(1.)
 
@@ -207,6 +213,14 @@ def detect_with_rs(spikes, args):
     return burst_spikes
 
 
+def detect_with_rgs(spikes, args):
+    data = [pd.DataFrame({'isi': np.array(spikes)})]
+    bursts, pauses = rgs.np_summary(data, min_spikes=3)
+
+
+
+
+
 def detect_with_logisi(spikes, args):
     spikes_r = ro.FloatVector(spikes)
 
@@ -230,6 +244,39 @@ def detect_with_logisi(spikes, args):
         return burst_spikes, burst_bunches
     except:
         return burst_spikes, []
+
+
+def detect_with_ps(spikes, args):
+    try:
+        thresh = args.si_thresh
+    except:
+        thresh = 3
+    # print thresh
+
+    spikes_r = ro.FloatVector(spikes)
+
+    ro.r.assign('spikes', spikes_r)
+    res = pd.DataFrame(ro.r('data.frame(PS.method(spikes, si.thresh={}))'.format(thresh)))
+
+    burst_spikes = np.zeros(spikes.shape[0])
+
+    try:
+        idx = zip(map(int, res['beg']), map(int, res['end']))
+        burst_lens = list()
+
+        for s, e in idx:
+            s -= 1
+            burst_spikes[s:e] = True
+            burst_lens.append(spikes[e-1] - spikes[s])
+
+        burst_bunches = list()
+        for s, e in idx:
+            s -= 1
+            burst_bunches.append(np.array(spikes[s:e]))
+
+        return burst_spikes, burst_bunches, burst_lens
+    except:
+        return burst_spikes, [], []
 
 
 def main(args):
