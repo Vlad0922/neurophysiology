@@ -3,39 +3,53 @@
 import sys
 import os
 import glob
-
-import neo.io
+import ctypes
+import argparse
+import platform
 
 from collections import defaultdict
 
+import neo.io
+
 import numpy as np
-
-import argparse
-
-try:
-    import matlab.engine
-
-    eng = matlab.engine.start_matlab()
-    eng.addpath('utility_scripts')
-
-    USE_MATLAB = True
-except:
-    import pandas as pd
-
-    print 'Cannot import or start MATLAB engine, will import to .txt files...'
-
-    USE_MATLAB = False
 
 
 BYTES_IN_KB = 1024
-UV_IN_VOLTS = 0.001
 OK_SIGNALS_COUNT = 3
 
 
-def load_ceds_lib(lib_path):
-    eng.addpath(lib_path, nargout=0)
-    eng.CEDS64LoadLib(lib_path, nargout=0)
+def get_windows_version():
+    if platform.architecture()[0] == '64bit':
+        return 'x64'
+    else:
+        return 'x86'
 
+
+def get_bin_path():
+    curr_dir = os.path.split(os.getcwd())[~0]
+    if curr_dir == 'utility_scripts':
+        return 'ceds_bin\\{}'.format(WIN_VER)
+    else:
+        return 'utility_scripts\\ceds_bin\\{}'.format(WIN_VER)
+
+
+WIN_VER = get_windows_version()
+CEDS_BIN_PATH = get_bin_path()
+
+
+ceds_path = '{}\\ceds64int.dll'.format(CEDS_BIN_PATH)
+son_path =  '{}\\son64.dll'.format(CEDS_BIN_PATH)
+msvcp_path =  '{}\\msvcp110.dll'.format(CEDS_BIN_PATH)
+msvcr_path =  '{}\\msvcr110.dll'.format(CEDS_BIN_PATH)
+load_order = [msvcr_path, msvcp_path, son_path]
+
+
+def load_ceds_lib():
+    for l in load_order:
+        ctypes.WinDLL(l)
+
+    return ctypes.WinDLL(ceds_path)
+ceds_handler = load_ceds_lib()
 
 def read_alphaomega(fname):
     data_dict = dict()
@@ -60,34 +74,37 @@ def prepare_keys(data_dict):
     return data_dict
 
 
-def write_with_matlab(data_dict, root, fname, spk_freq, lfp_freq):
+def write_to_smr(data_dict, root, fname, spk_freq, lfp_freq):
+    div = int(spk_freq/lfp_freq)
+
     preproc_path = os.path.join(root, 'converted_to_smr')
     if not os.path.exists(preproc_path):
         os.makedirs(preproc_path)
 
-    for k, v in data_dict.items():
-        data_dict[k] = matlab.double(list(v))
-
     fname_no_ext = os.path.splitext(os.path.basename(fname))[0]
     fname_smr = '{}.smr'.format(fname_no_ext)
-    fullpath_smr = os.path.join(preproc_path, fname_smr)
+    fullpath_smr = os.path.join(preproc_path, fname_smr)   
 
-    eng.dict_to_smr(data_dict, fullpath_smr, spk_freq, lfp_freq, nargout=0)
+    fhand = ceds_handler.S64Create(fullpath_smr, 32, 0)
+    ceds_handler.S64SetTimeBase(fhand, ctypes.c_double(1./spk_freq)) 
 
+    for idx, key in enumerate(data_dict.keys()):
+        idx += 1
 
-def write_to_txt(data_dict, root, fname):
-    preproc_path = os.path.join(root, 'converted_to_txt')
-    if not os.path.exists(preproc_path):
-        os.makedirs(preproc_path)
+        arr = data_dict[key]
 
-    df = pd.DataFrame(dict([(k, pd.Series(v)) for k, v in data_dict.iteritems()]))
-    df = df[sorted(df.columns.values, reverse=True)]
+        if key.lower().startswith('lfp'):
+            ceds_handler.S64SetWaveChan(ctypes.c_int(fhand), ctypes.c_int(idx), ctypes.c_longlong(div), ctypes.c_int(9), ctypes.c_double(lfp_freq))
+        else:
+            ceds_handler.S64SetWaveChan(ctypes.c_int(fhand), ctypes.c_int(idx), ctypes.c_longlong(1), ctypes.c_int(9), ctypes.c_double(spk_freq))
 
-    fname_no_ext = os.path.splitext(os.path.basename(fname))[0]
-    fname_txt = '{}.txt'.format(fname_no_ext)
-    fullpath_txt = os.path.join(preproc_path, fname_txt)
+        res_write = ceds_handler.S64WriteWaveF(ctypes.c_int(fhand), ctypes.c_int(idx), (ctypes.c_float * len(arr))(*arr), 
+                                         ctypes.c_int(len(arr)), ctypes.c_longlong(0))
 
-    df.to_csv(fullpath_txt, index=False, sep='\t')
+        ceds_handler.S64SetChanTitle(fhand, idx, key)
+        ceds_handler.S64SetChanUnits(fhand, idx, 'V')
+
+    ceds_handler.S64Close(fhand)
 
 
 def get_files_by_trials(dat_files):
@@ -107,7 +124,7 @@ def read_binary(files, cut, cut_size, freq):
         fname = os.path.splitext(os.path.basename(full_path))[0]
         fname = fname[fname.find('_')+1:]
 
-        data = np.fromfile(full_path, dtype="<u2")*UV_IN_VOLTS
+        data = np.fromfile(full_path, dtype="<u2")
 
         if cut:
             data = data[int(cut_size*freq):]
@@ -122,12 +139,10 @@ if __name__ == '__main__':
 
     parser.add_argument('--input_dir', type=str, required=True,
                         help='Directory with data files')
-    parser.add_argument('--spk_freq', type=float, required=True,
+    parser.add_argument('--spk_freq', type=float, default=24340.7688141,
                         help='Spike channel frequency')
-    parser.add_argument('--lfp_freq', type=float, required=True,
+    parser.add_argument('--lfp_freq', type=float, default=760.648965836,
                         help='LFP channel frequency')
-    parser.add_argument('--ceds_lib', type=str, default=r'C:\CEDMATLAB\CEDS64ML',
-                        help='Path to CED MATLAB library')
     parser.add_argument('--cut', action='store_true', default=False,
                         help='Cut strange artifact at the beginning?')
     parser.add_argument('--cut_size', type=float, help='Cut size')
@@ -140,22 +155,10 @@ if __name__ == '__main__':
     input_dir = args.input_dir
     lfp_freq = args.lfp_freq
     spk_freq = args.spk_freq
-    ced_path = args.ceds_lib
     cut = args.cut
     cut_size = args.cut_size
 
-    try:
-        load_ceds_lib(ced_path)
-    except:
-        print 'Cannot load CEDS MATLAB library by path: {}'.format(ced_path)
-        USE_MATLAB = False
-
     walk_res = os.walk(input_dir)
-
-    if USE_MATLAB:
-        def write_func(d, r, f): write_with_matlab(d, r, f, spk_freq, lfp_freq)
-    else:
-        def write_func(d, r, f): write_to_txt(d, r, f)
 
     for root, _, _ in walk_res:
         map_files = glob.glob(os.path.join(root, '*.map'))
@@ -167,7 +170,7 @@ if __name__ == '__main__':
             data_dict = read_alphaomega(fname)
             data_dict = prepare_keys(data_dict)
 
-            write_func(data_dict, root, fname)
+            write_to_smr(data_dict, root, fname, spk_freq, lfp_freq)
 
         files_by_trial = get_files_by_trials(dat_files)
         for num, files in files_by_trial.items():
@@ -176,6 +179,6 @@ if __name__ == '__main__':
             data_dict = read_binary(files, cut, cut_size, spk_freq)
             data_dict = prepare_keys(data_dict)
 
-            write_func(data_dict, root, str(num))
+            write_to_smr(data_dict, root, str(num), spk_freq, lfp_freq)
 
     print 'done'
