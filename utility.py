@@ -3,7 +3,8 @@
 import os
 import sys
 
-from PyQt4.QtGui import *
+# from PyQt4.QtGui import *
+
 import matplotlib.pyplot as plt
 
 import xlrd
@@ -47,40 +48,40 @@ def rem_key(data, keys):
     return {k:data[k] for k in data.keys() if k not in keys}
 
 
-class MyTable(QTableWidget):
-    def __init__(self, data, index_header):
-        QTableWidget.__init__(self, len(data.values()[0]), len(data))
-        self.index_header = index_header
-        self.data = data
-        self.setmydata()
-        self.resizeColumnsToContents()
-        self.resizeRowsToContents()
+# class MyTable(QTableWidget):
+#     def __init__(self, data, index_header):
+#         QTableWidget.__init__(self, len(data.values()[0]), len(data))
+#         self.index_header = index_header
+#         self.data = data
+#         self.setmydata()
+#         self.resizeColumnsToContents()
+#         self.resizeRowsToContents()
         
  
-    def setmydata(self):
-        horHeaders = []
+#     def setmydata(self):
+#         horHeaders = []
         
-        self.init_index(horHeaders)
+#         self.init_index(horHeaders)
         
-        for n, key in enumerate(sorted(rem_key(self.data, self.index_header).keys())):
-            horHeaders.append(key)
-            for m, item in enumerate(self.data[key]):
-                newitem = QTableWidgetItem(str(item))
-                self.setItem(m, n+1, newitem)
+#         for n, key in enumerate(sorted(rem_key(self.data, self.index_header).keys())):
+#             horHeaders.append(key)
+#             for m, item in enumerate(self.data[key]):
+#                 newitem = QTableWidgetItem(str(item))
+#                 self.setItem(m, n+1, newitem)
                 
-        self.setHorizontalHeaderLabels(horHeaders)
+#         self.setHorizontalHeaderLabels(horHeaders)
   
     
-    def init_index(self, headers):
-        headers.append(self.index_header)
-        for m, item in enumerate(self.data[self.index_header]):
-            newitem = QTableWidgetItem(str(item))
-            self.setItem(m, 0, newitem)
+#     def init_index(self, headers):
+#         headers.append(self.index_header)
+#         for m, item in enumerate(self.data[self.index_header]):
+#             newitem = QTableWidgetItem(str(item))
+#             self.setItem(m, 0, newitem)
         
 
-def draw_table(data):   
-    a = QApplication(sys.argv)
+# def draw_table(data):   
+#     a = QApplication(sys.argv)
  
-    table = MyTable(data, 'data_name')
-    table.show()
-    return a.exec_()
+#     table = MyTable(data, 'data_name')
+#     table.show()
+#     return a.exec_()
