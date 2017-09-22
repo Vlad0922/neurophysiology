@@ -27,10 +27,10 @@ def get_windows_version():
 
 def get_bin_path():
     curr_dir = os.path.split(os.getcwd())[~0]
-    if curr_dir == 'utility_scripts':
-        return 'ceds_bin\\{}'.format(WIN_VER)
-    else:
+    if curr_dir == 'neurophysiology':
         return 'utility_scripts\\ceds_bin\\{}'.format(WIN_VER)
+    else:
+        return 'ceds_bin\\{}'.format(WIN_VER)
 
 
 WIN_VER = get_windows_version()
