@@ -97,7 +97,7 @@ def main(args):
             patient = full_name.split(os.sep)[3]
             ext = full_name[-3:].lower()
 
-            if ext == 'smr':
+            if ext == 'smr' and False:
                 print full_name
                 for st in spiketrains_iterator(neo.io.Spike2IO(filename=full_name)):
                     spikes = np.array(st)
@@ -125,9 +125,9 @@ def main(args):
                                                 df = calc_stats(spikes_filtered, f_name, st.name, int_name)
                                                 df['patient'] = patient
                                                 write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
-                            elif name_lower.startswith('allfile'):
+                            elif name_lower.startswith('allfile') or name_lower.startswith('nw'):
                                 spikes = np.array(st)
-                                if len(spikes) > 40 and (spikes[~0] - spikes[0] > 5.):                                    
+                                if len(spikes) > 75 and (spikes[~0] - spikes[0] > 5.):                                    
                                     df = calc_stats(spikes, f_name, st.name, 'allfile')
                                     df['patient'] = patient
                                     write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
