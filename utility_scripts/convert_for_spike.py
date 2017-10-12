@@ -61,7 +61,7 @@ def read_alphaomega(fname):
             spk_signals = sorted(sg.name for sg in seg.analogsignals if sg.name.lower().startswith('spk'))[:OK_SIGNALS_COUNT]
             for sg in seg.analogsignals:
                 if sg.name in lfp_signals or sg.name in spk_signals:
-                    data_dict[sg.name] = [float(v[0]) for v in np.array(sg)]
+                    data_dict[sg.name] = [ctypes.c_float(v[0]) for v in np.array(sg)]
 
     return data_dict
 
@@ -137,7 +137,7 @@ def read_binary(files, cut, cut_size, freq):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert AlphaOmega .map files to .txt/.smr for spike2')
 
-    parser.add_argument('--input_dir', type=str, required=True,
+    parser.add_argument('--data_dir', type=str, required=True,
                         help='Directory with data files')
     parser.add_argument('--spk_freq', type=float, default=24340.7688141,
                         help='Spike channel frequency')
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     if args.cut and args.cut_size is None:
         parser.error("--cut requires --cut_size")
 
-    input_dir = args.input_dir
+    input_dir = args.data_dir
     lfp_freq = args.lfp_freq
     spk_freq = args.spk_freq
     cut = args.cut
