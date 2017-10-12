@@ -13,8 +13,6 @@ import numpy as np
 import scipy.stats
 import pandas as pd
 
-
-
 import matplotlib.pyplot as plt
 
 from rpy2.robjects.packages import importr
@@ -23,8 +21,6 @@ from rpy2.robjects import FloatVector
 from rpy2.robjects import pandas2ri
 pandas2ri.activate()
 
-import rgs
-
 try:
     import seaborn as sns
 except:
@@ -32,27 +28,10 @@ except:
 
 import neo.io
 
-# import rank_surprise  
-
-get_probs_func_str = 'get_probs_hsmm <- function(out)                           \n\
-                        {                                                       \n\
-                          subset <- 1:out$mcmc[2]                               \n\
-                                                                                \n\
-                          p.states <- 1 - apply(out$states[, subset], 1, mean)  \n\
-                          pars <- out$pars[, subset]                            \n\
-                                                                                \n\
-                          if(median(pars[2,] - pars[4,]) > 0){                  \n\
-                            p.states <- 1 - p.states                            \n\
-                          }                                                     \n\
-                                                                                \n\
-                          return(p.states)                                      \n\
-                        }'
-
 importr('pracma')
 importr('sjemea')
-# ro.r(get_probs_func_str)
-# ro.r('source("logisi.R")')
 ro.r('source("3rdparty/PS_method.R")')
+
 
 SPIKES_RV = scipy.stats.poisson(1.)
 

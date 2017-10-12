@@ -85,9 +85,6 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
     df['median_isi_in_burst'] = calc_median_isi_in_burst(burst_bunches)
     df['interburst_interval'] = calc_interburst_interval(burst_bunches)
 
-    bursts_oscore = calc_oscore_for_bursts(burst_bunches)
-    df.update(bursts_oscore)
-
     return df
 
 
