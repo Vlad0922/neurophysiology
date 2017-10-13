@@ -61,7 +61,7 @@ def read_alphaomega(fname):
             spk_signals = sorted(sg.name for sg in seg.analogsignals if sg.name.lower().startswith('spk'))[:OK_SIGNALS_COUNT]
             for sg in seg.analogsignals:
                 if sg.name in lfp_signals or sg.name in spk_signals:
-                    data_dict[sg.name] = [ctypes.c_short(v[0]) for v in np.array(sg)]
+                    data_dict[sg.name] = [ctypes.c_float(v[0]) for v in np.array(sg)]
 
     return data_dict
 
@@ -94,11 +94,13 @@ def write_to_smr(data_dict, root, fname, spk_freq, lfp_freq):
         arr = data_dict[key]
 
         if key.lower().startswith('lfp'):
-            ceds_handler.S64SetWaveChan(ctypes.c_int(fhand), ctypes.c_int(idx), ctypes.c_longlong(div), ctypes.c_int(1), ctypes.c_double(lfp_freq))
+            ceds_handler.S64SetWaveChan(ctypes.c_int(fhand), ctypes.c_int(idx), ctypes.c_longlong(div), ctypes.c_int(9), ctypes.c_double(lfp_freq))
         else:
-            ceds_handler.S64SetWaveChan(ctypes.c_int(fhand), ctypes.c_int(idx), ctypes.c_longlong(1), ctypes.c_int(1), ctypes.c_double(spk_freq))
+            ceds_handler.S64SetWaveChan(ctypes.c_int(fhand), ctypes.c_int(idx), ctypes.c_longlong(1), ctypes.c_int(9), ctypes.c_double(spk_freq))
 
-        res_write = ceds_handler.S64WriteWaveS(ctypes.c_int(fhand), ctypes.c_int(idx), (ctypes.c_short * len(arr))(*arr), 
+        ceds_handler.S64SetIdealRate(fhand, ctypes.c_int(idx), ctypes.c_double(spk_freq))
+
+        res_write = ceds_handler.S64WriteWaveF(ctypes.c_int(fhand), ctypes.c_int(idx), (ctypes.c_float * len(arr))(*arr), 
                                          ctypes.c_int(len(arr)), ctypes.c_longlong(0))
 
         ceds_handler.S64SetChanTitle(fhand, idx, key)
