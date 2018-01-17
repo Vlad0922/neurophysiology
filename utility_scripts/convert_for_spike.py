@@ -7,6 +7,8 @@ import ctypes
 import argparse
 import platform
 
+import math
+
 from collections import defaultdict
 
 import neo.io
@@ -28,19 +30,19 @@ def get_windows_version():
 def get_bin_path():
     curr_dir = os.path.split(os.getcwd())[~0]
     if curr_dir == 'neurophysiology':
-        return 'utility_scripts\\ceds_bin\\{}'.format(WIN_VER)
+        return os.path.join('utility_scripts', 'ceds_bin', WIN_VER)
     else:
-        return 'ceds_bin\\{}'.format(WIN_VER)
+        return os.path.join('ceds_bin', WIN_VER)
 
 
 WIN_VER = get_windows_version()
 CEDS_BIN_PATH = get_bin_path()
 
 
-ceds_path = '{}\\ceds64int.dll'.format(CEDS_BIN_PATH)
-son_path =  '{}\\son64.dll'.format(CEDS_BIN_PATH)
-msvcp_path =  '{}\\msvcp110.dll'.format(CEDS_BIN_PATH)
-msvcr_path =  '{}\\msvcr110.dll'.format(CEDS_BIN_PATH)
+ceds_path = os.path.join(CEDS_BIN_PATH, 'ceds64int.dll')
+son_path =  os.path.join(CEDS_BIN_PATH, 'son64.dll')
+msvcp_path =  os.path.join(CEDS_BIN_PATH, 'msvcp110.dll')
+msvcr_path =  os.path.join(CEDS_BIN_PATH, 'msvcr110.dll')
 load_order = [msvcr_path, msvcp_path, son_path]
 
 
@@ -50,6 +52,7 @@ def load_ceds_lib():
 
     return ctypes.WinDLL(ceds_path)
 ceds_handler = load_ceds_lib()
+
 
 def read_alphaomega(fname):
     data_dict = dict()
@@ -61,13 +64,30 @@ def read_alphaomega(fname):
             spk_signals = sorted(sg.name for sg in seg.analogsignals if sg.name.lower().startswith('spk'))[:OK_SIGNALS_COUNT]
             for sg in seg.analogsignals:
                 if sg.name in lfp_signals or sg.name in spk_signals:
-                    print np.array(sg).shape
-                    data_dict[sg.name] = [ctypes.c_short(v[0]) for v in np.array(sg)]
-                    if sg.name == 'Spk 10033':
-                        print np.array(sg)[:5]
-                        print np.max(np.array(sg))
+                    data_dict[sg.name] = [v[0] for v in np.array(sg)]
 
     return data_dict
+
+
+def rolling_window(a, window):
+    shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
+    strides = a.strides + (a.strides[-1],)
+    return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+
+
+def _interpolate_window(w, ratio):
+    res = np.zeros(ratio)
+    res[0], res[~0] = w
+
+    for i in range(1, ratio):
+        res[i] = w[0] + 1.*(w[1] - w[0])*i/(ratio+1)
+
+    return res 
+
+
+def inteprolate_signal(signal, ratio):
+    windows = rolling_window(signal, 2)
+    return np.hstack([_interpolate_window(w, ratio) for w in windows])
 
 
 def prepare_keys(data_dict):
@@ -95,23 +115,22 @@ def write_to_smr(data_dict, root, fname, spk_freq, lfp_freq):
     for idx, key in enumerate(data_dict.keys()):
         idx += 1
 
-        arr = data_dict[key]
-
-        if key == 'Spk_10033':
-            print arr[:5]
-
-        if key.lower().startswith('lfp'):
-            ceds_handler.S64SetWaveChan(ctypes.c_int(fhand), ctypes.c_int(idx), ctypes.c_longlong(div), ctypes.c_int(9), ctypes.c_double(lfp_freq))
-        else:
-            ceds_handler.S64SetWaveChan(ctypes.c_int(fhand), ctypes.c_int(idx), ctypes.c_longlong(1), ctypes.c_int(9), ctypes.c_double(spk_freq))
+        arr = [ctypes.c_float(v) for v in data_dict[key]]
 
         ceds_handler.S64SetIdealRate(fhand, ctypes.c_int(idx), ctypes.c_double(spk_freq))
 
-        res_write = ceds_handler.S64WriteWaveS(ctypes.c_int(fhand), ctypes.c_int(idx), (ctypes.c_short * len(arr))(*arr), 
+        if key.lower().startswith('lfp'):
+            ceds_handler.S64SetWaveChan(ctypes.c_int(fhand), ctypes.c_int(idx), ctypes.c_longlong(div), ctypes.c_int(9), ctypes.c_double(lfp_freq))
+            ceds_handler.S64SetChanTitle(fhand, idx, key)
+        else:
+            ceds_handler.S64SetWaveChan(ctypes.c_int(fhand), ctypes.c_int(idx), ctypes.c_longlong(1), ctypes.c_int(9), ctypes.c_double(spk_freq))
+            ceds_handler.S64SetChanTitle(fhand, idx, key)
+
+        res_write = ceds_handler.S64WriteWaveF(ctypes.c_int(fhand), ctypes.c_int(idx), (ctypes.c_float * len(arr))(*arr), 
                                          ctypes.c_int(len(arr)), ctypes.c_longlong(0))
 
-        ceds_handler.S64SetChanTitle(fhand, idx, key)
-        ceds_handler.S64SetChanUnits(fhand, idx, 'V')
+        
+        ceds_handler.S64SetChanUnits(fhand, idx, 'mV')
 
     ceds_handler.S64Close(fhand)
 
