@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-
-from __future__ import division
-
 import sys
 import os
 
 import neo.io
+
+import nolds
+
+import pandas as pd
 
 from utility import *
 from statistics import *
@@ -13,10 +14,10 @@ from oscore import *
 
 import argparse
 
-from detect_bursts import detect_with_logisi, find_burst_bunches, detect_with_ps
+from detect_bursts import detect_with_logisi, find_burst_bunches, detect_with_cma, detect_with_ps
 
 
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 
 
 ISP_RANGE = [(1, 3), (3, 8), (8, 13), (13, 30), (30, 100)]
@@ -35,7 +36,14 @@ def spiketrains_iterator(handler):
     raise StopIteration
 
 
-def calc_stats(spikes, fname, neuron_name, interval_name):
+def safe_mean(arr):
+    if len(arr) == 0:
+        return 0.
+    else:
+        return np.mean(arr)
+
+
+def calc_stats(spikes):
     data_filtered = spikes
     time_int = calc_intervals(spikes)
 
@@ -43,7 +51,6 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
         raise 'Empty filter result!'
 
     df = dict()
-    df['data_name'] = neuron_name
     df['burst_index'] = calc_burst_index(time_int, bbh=DEFAULT_BBH, bbl=DEFAULT_BBL, brep=DEFAULT_REPEAT)
     df['cv'] = calc_cv(time_int)
     df['nu'] = calc_nu(time_int)
@@ -53,9 +60,8 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
     df['pause_ratio'] = calc_pause_ratio(time_int)
     df['skewness'] = calc_skewness(time_int)
     df['kurtoisis'] = calc_kurtosis(time_int)
-    df['burst_mean'] = calc_burst_by_mean(time_int)
-    df['type'] = get_type(df['burst_mean'], df['cv'])
-    df['doc_name'] = fname
+    df['AI'] = calc_burst_by_mean(time_int)
+    df['type'] = get_type(df['AI'], df['cv'])
     df['isi_mean'] = np.mean(time_int)
     df['isi_median'] = np.median(time_int)
     df['isi_std'] = np.std(time_int)
@@ -66,7 +72,12 @@ def calc_stats(spikes, fname, neuron_name, interval_name):
     df['firing_rate'] = 1.*len(data_filtered)/df['filter_length']
     df['burst_behaviour'] = calc_burst_behavior(time_int, int(np.ceil(df['firing_rate']/10)))
     df['burst_percent'] = calc_burst_percent(time_int)
-    df['interval_name'] = interval_name
+    
+    # df['approximate_entropy'] = approximate_entropy(time_int, 2, 3)
+    df['dfa'] = nolds.dfa(time_int)
+    df['sampen'] = nolds.sampen(time_int)
+    df['corr_dim'] = nolds.corr_dim(time_int, 2)
+    df['hurst_rs'] = nolds.hurst_rs(time_int)
 
     for (osc_l, osc_h) in OSCORE_RANGE:
         trial = sec_to_timestamps(data_filtered, DEFAULT_FREQUENCY).tolist()
@@ -92,13 +103,16 @@ def main(args):
     dist_dir = args.data_dir
     dist_file = '{}.xls'.format(args.dist_file)
 
+    all_data = defaultdict(list)
+
     for root, subdirs, files in os.walk(dist_dir):
+
         for full_name, f_name in [(os.path.join(root, f_name), f_name) for f_name in files]:
             patient = full_name.split(os.sep)[3]
             ext = full_name[-3:].lower()
 
             if ext == 'smr' and False:
-                print full_name
+                print(full_name)
                 for st in spiketrains_iterator(neo.io.Spike2IO(filename=full_name)):
                     spikes = np.array(st)
                     if len(spikes) > 40 and (spikes[~0] - spikes[0] > 5.):
@@ -107,12 +121,12 @@ def main(args):
                         df['patient'] = patient
                         write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
             elif ext == 'nex':
-                print full_name
+                print(full_name)
                 r = neo.io.NeuroExplorerIO(filename=full_name)
                 for blk in r.read(cascade=True, lazy=False):
                     for seg in blk.segments:
                         for st in seg.spiketrains:
-                            name_lower = st.name.lower()
+                            name_lower = str(st.name.lower())
                             if name_lower.startswith('fon'):
                                 spikes = np.array(st)
                                 for interval in seg.epochs:
@@ -122,17 +136,31 @@ def main(args):
                                             e = s + d
                                             spikes_filtered = spikes[np.where((spikes >= s) & (spikes <= e))]
                                             if len(spikes_filtered) > 40 and (spikes_filtered[~0] - spikes_filtered[0]) > 5.:
-                                                df = calc_stats(spikes_filtered, f_name, st.name, int_name)
+                                                df = calc_stats(spikes_filtered)
                                                 df['patient'] = patient
-                                                write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
+                                                df['data_name'] = st.name
+                                                df['doc_name'] = f_name
+                                                df['interval_name'] = int_name
+
+                                                for k in df:
+                                                    all_data[k].append(df[k])
                             elif name_lower.startswith('allfile') or name_lower.startswith('nw'):
                                 spikes = np.array(st)
                                 if len(spikes) > 75 and (spikes[~0] - spikes[0] > 5.):                                    
-                                    df = calc_stats(spikes, f_name, st.name, 'allfile')
+                                    df = calc_stats(spikes)
                                     df['patient'] = patient
-                                    write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
+                                    df['patient'] = patient
+                                    df['data_name'] = st.name
+                                    df['doc_name'] = f_name
+                                    df['interval_name'] = 'allfile'
 
-    print 'done'
+                                    for k in df:
+                                        all_data[k].append(df[k])
+
+    all_data = pd.DataFrame(all_data)
+    all_data.to_excel(dist_file, index=False)
+
+    print('done')
 
 
 if __name__ == '__main__':

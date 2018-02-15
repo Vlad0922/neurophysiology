@@ -3,7 +3,7 @@
 # HSMM based method described in paper "Detection of bursts in extracellular spike trains using hidden semi-Markov point process models"
 # original source code for this method found here: http://www2.stat.duke.edu/~st118/Software/burstHSMM/
 
-from __future__ import division
+from __future__ import division, print_function
 
 import argparse
 
@@ -24,17 +24,19 @@ pandas2ri.activate()
 try:
     import seaborn as sns
 except:
-    print 'using oldschool matplotlib'
+    print('using oldschool matplotlib')
 
 import neo.io
 
+from rgs import bp_summary
+
+
 importr('pracma')
 importr('sjemea')
-ro.r('source("3rdparty/PS_method.R")')
-
+ro.r('source("burstanalysis/CMA_method.R")')
+ro.r('source("burstanalysis/PS_method.R")')
 
 SPIKES_RV = scipy.stats.poisson(1.)
-
 
 def plot_spikes(spikes, burst_spikes):
     f, axarr = plt.subplots(3, sharex=True)
@@ -153,8 +155,6 @@ def detect_with_vitek(spikes, args):
     ch2_test = scipy.stats.chisquare(hist_counts, SPIKES_RV.pmf(count_values)*len(spikes))[1]
     skew_test = scipy.stats.skew(hist_counts)
 
-    print ch2_test, skew_test
-
     if(ch2_test < 0.05 and skew_test > args.skewness):
         d = find_threshold_density(hist_counts)
 
@@ -193,10 +193,10 @@ def detect_with_rs(spikes, args):
 
 
 def detect_with_rgs(spikes, args):
-    data = [pd.DataFrame({'isi': np.array(spikes)})]
-    bursts, pauses = rgs.np_summary(data, min_spikes=3)
+    data = [spikes]
+    bursts, pauses = bp_summary(data)
 
-
+    return bursts, pauses
 
 
 
@@ -240,7 +240,7 @@ def detect_with_ps(spikes, args):
     burst_spikes = np.zeros(spikes.shape[0])
 
     try:
-        idx = zip(map(int, res['beg']), map(int, res['end']))
+        idx = list(zip(map(int, res['beg']), map(int, res['end'])))
         burst_lens = list()
 
         for s, e in idx:
@@ -251,6 +251,31 @@ def detect_with_ps(spikes, args):
         burst_bunches = list()
         for s, e in idx:
             s -= 1
+            burst_bunches.append(np.array(spikes[s:e]))
+
+        return burst_spikes, burst_bunches, burst_lens
+    except:
+        return burst_spikes, [], []
+
+
+def detect_with_cma(spikes, args):
+    spikes_r = ro.FloatVector(spikes)
+
+    ro.r.assign('spikes', spikes_r)
+    res = pd.DataFrame(ro.r('data.frame(CMA.method(spikes))'))
+
+    burst_spikes = np.zeros(spikes.shape[0], dtype=int )
+
+    try:
+        idx = list(zip(map(int, res['beg']), map(int, res['end'])))
+        burst_lens = list()
+        burst_bunches = list()
+
+        for s, e in idx:
+            s -= 1
+
+            burst_spikes[s:e] = 1
+            burst_lens.append(spikes[e-1] - spikes[s])
             burst_bunches.append(np.array(spikes[s:e]))
 
         return burst_spikes, burst_bunches, burst_lens

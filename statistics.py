@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import division
-
+from __future__ import division, print_function
 
 import numpy as np
 from scipy.special import psi
@@ -251,7 +250,7 @@ def calc_median_isi_in_burst(bursts):
 
 def calc_interburst_interval(bursts):
     if len(bursts) < 2:
-        print 'We have less then two bursts, dude...'
+        print('We have less then two bursts, dude...')
         return 0.
     
     return np.mean([bursts[i][~0] - bursts[i-1][~0]  for i in range(1, len(bursts))])
@@ -289,3 +288,20 @@ def calc_oscore_for_bursts(bursts):
         res['burst_oscore_{}_{}'.format(osc_l, osc_h)] = oscore
 
     return res
+
+
+# thanks to someone
+# https://gist.github.com/f00-/a835909ffd15b9927820d175a48dee41
+def approximate_entropy(U, m, r):
+
+    def _maxdist(x_i, x_j):
+        return max([abs(ua - va) for ua, va in zip(x_i, x_j)])
+
+    def _phi(m):
+        x = [[U[j] for j in range(i, i + m - 1 + 1)] for i in range(N - m + 1)]
+        C = [len([1 for x_j in x if _maxdist(x_i, x_j) <= r]) / (N - m + 1.0) for x_i in x]
+        return (N - m + 1.0)**(-1) * sum(np.log(C))
+
+    N = len(U)
+
+    return abs(_phi(m + 1) - _phi(m))
