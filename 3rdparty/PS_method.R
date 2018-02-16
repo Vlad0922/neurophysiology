@@ -1,7 +1,7 @@
 ##PS method
 
-PS.method<-function(spike.train, si.thresh=3) {
-    si.thresh<-ifelse(is.null(si.thresh), 3, si.thresh)
+PS.method<-function(spike.train, si.thresh=5) {
+    si.thresh<-ifelse(is.null(si.thresh), 5, si.thresh)
     burst <- si.find.bursts.thresh(spike.train)
     if (is.null(dim(burst))){
         result<-NA
@@ -36,7 +36,7 @@ si.find.bursts.thresh<- function (spikes, debug = FALSE)
     threshold = mean.isi/2
     n = 1
     max.bursts <- floor(nspikes/3)
-    bursts <- matrix(NA, nrow = max.bursts, ncol = 5)
+    bursts <- matrix(NA, nrow = max.bursts, ncol = burst.info.len)
     burst <- 0
     while (n < nspikes - 2) {
         if (debug)

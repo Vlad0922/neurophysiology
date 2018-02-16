@@ -13,7 +13,10 @@ import numpy as np
 import scipy.stats
 import pandas as pd
 
+from collections import Counter
+
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 
 from rpy2.robjects.packages import importr
 import rpy2.robjects as ro
@@ -28,13 +31,10 @@ except:
 
 import neo.io
 
-from rgs import bp_summary
-
-
-importr('pracma')
-importr('sjemea')
-ro.r('source("burstanalysis/CMA_method.R")')
-ro.r('source("burstanalysis/PS_method.R")')
+# importr('pracma')
+# importr('sjemea')
+# ro.r('source("3rdparty/CMA_method.R")')
+# ro.r('source("3rdparty/PS_method.R")')
 
 SPIKES_RV = scipy.stats.poisson(1.)
 
@@ -57,8 +57,41 @@ def plot_spikes(spikes, burst_spikes):
     plt.show()
 
 
+SPIKES_RV = scipy.stats.poisson(1.)
+
+def clever_split(arr, step):
+    res = list()
+    
+    idx = 0
+    for l in np.arange(0, arr[~0], step):
+        curr = list()
+        while(idx < len(arr) and arr[idx] < l + step):
+            curr.append(arr[idx])
+            idx += 1
+        
+        res.append(curr)
+    
+    return res
+
+
+def spiketrains_iterator(handler):
+    for blk in handler.read(cascade=True, lazy=False):
+        for seg in blk.segments:
+            for st in seg.spiketrains:
+                yield st.name, np.array(st)
+                
+def events_iterator(handler):
+    for blk in handler.read(cascade=True, lazy=False):
+        for seg in blk.segments:
+            for st in seg.events:
+                yield st.annotations['channel_name'], np.array(st)
+
+
 def calc_discharge_rate(spikes):
     return 1.*len(spikes)/(spikes[~0] - spikes[0])
+
+def bin_by_discharge(spikes, coeff=2):
+    return coeff/calc_discharge_rate(spikes)
 
 
 def median_of_three_smoothing(hist):
@@ -69,28 +102,6 @@ def median_of_three_smoothing(hist):
     res[-1] = np.median([hist[-2], hist[-1], hist[-1]])
 
     return res
-
-
-def find_burst_spikes(spikes, burst_isi, min_count):
-    min_count -= 1
-
-    burst_spikes = np.zeros(spikes.shape[0], dtype=bool)
-
-    prev = 0
-    counter = 0
-    for i in range(burst_isi.shape[0]):
-        if burst_isi[i]:
-            counter += 1
-        else:
-            if counter > min_count:
-                burst_spikes[prev:i+1] = True
-            counter = 0
-            prev = i+1
-
-    if counter > min_count:
-        burst_spikes[prev:i+1] = True
-
-    return burst_spikes
 
 
 def find_by_bin(hist):
@@ -127,44 +138,105 @@ def find_threshold_density(hist):
     return d
 
 
-def find_burst_bunches(spikes, burst_mask):
-    res = list()
-    curr = list()
-    for i in range(burst_mask.shape[0]):
-        if burst_mask[i]:
-            curr.append(spikes[i])
-        else:
-            if len(curr) != 0:
-                res.append(curr)
-            curr = list()
-    
-    return res
+def calc_bin_isi_std(spikes):
+    isi = spikes[1:] - spikes[:-1]
+    return np.std(isi)
 
 
-def detect_with_vitek(spikes, args):
+def detect_with_vitek(spikes, args, with_hist=False):
+    bin_func_name = args.bin_func
+    coeff = args.discharge_coeff
+    min_spikes = args.min_spikes
+
+    if bin_func_name == 'discharge':
+        bin_func = lambda s: bin_by_discharge(s, coeff)
+    else:
+        bin_func = calc_bin_isi_std
+
     spikes = np.array(spikes)
+        
+    t = bin_func(spikes)
 
-    t = 1./calc_discharge_rate(spikes)
+    counts = list(map(len, clever_split(spikes, t)))
+    nums, vals = zip(*sorted(Counter(counts).items()))
 
-    bins = np.arange(spikes[0],  spikes[~0] + t, t)
-    hist_counts = np.bincount(np.histogram(spikes, bins)[0])
-    count_values = list(range(len(hist_counts)))
+    vals = median_of_three_smoothing(np.array(vals, dtype=float))
 
-    hist_counts = median_of_three_smoothing(hist_counts)
+    ch2_test = scipy.stats.chisquare(vals, SPIKES_RV.pmf(nums)*len(spikes))[1]
+    skew_test = scipy.stats.skew(counts)
 
-    ch2_test = scipy.stats.chisquare(hist_counts, SPIKES_RV.pmf(count_values)*len(spikes))[1]
-    skew_test = scipy.stats.skew(hist_counts)
+    burst_spikes = np.zeros(spikes.shape[0], dtype=bool)
+    burst_bunches = list()
+    burst_lens = list()  
+    
+    if(ch2_test < 0.05 and skew_test > 0.5):
+        d = find_threshold_density(vals)
 
-    if(ch2_test < 0.05 and skew_test > args.skewness):
-        d = find_threshold_density(hist_counts)
-
-        isi_t = t/(d-1)
+        isi_t = t/d
+        
         isi = np.ediff1d(spikes)
-        burst_isi = np.array(isi <= isi_t)
+        burst_isi = np.array(isi <= isi_t, dtype=bool)    
+        
+        prev = 0
+        counter = 0
+        for idx, i in enumerate(burst_isi):
+            if i:
+                counter += 1
+            else:
+                if counter >= min_spikes - 1:
+                    burst_spikes[prev:idx+1] = True  
+                    burst_bunches.append(spikes[prev:idx+1])
+                    burst_lens.append(spikes[idx] - spikes[prev])
 
-        return find_burst_spikes(spikes, burst_isi, args.min_spike_count)
+                counter = 0   
+                prev = idx + 1
+        
+        if counter >= min_spikes - 1:  
+            burst_spikes[prev:idx+1] = True  
+            burst_bunches.append(spikes[prev:idx+1])
+            burst_lens.append(spikes[idx] - spikes[prev])
+        
+    if with_hist:
+        return burst_spikes, burst_bunches, burst_lens, vals
+    else:
+        return burst_spikes, burst_bunches, burst_lens
 
-    return np.zeros(spikes.shape[0])
+
+def detect_plot_vitek(spikes, fname, args):    
+    st = np.array(spikes)
+
+    burst_spikes, burst_bunches, _, hist = detect_with_vitek(st, args=args, with_hist=True)
+
+    isi = st[1:] - st[:-1]
+    
+    fig = plt.figure(figsize=(15,10))
+    gridspec.GridSpec(3,3)
+
+    plt.subplot2grid((3, 3), (0,1))
+    plt.bar(np.arange(hist.shape[0]), hist)
+    plt.plot(SPIKES_RV.pmf(np.arange(hist.shape[0]))*len(st), color='black')
+    plt.title('SDH, method: {}'.format(args.bin_func))
+    
+    plt.subplot2grid((3, 3), (1,0), colspan=3)
+    for s in st:
+        plt.plot([s, s], [-1, 1], color='black', lw=0.3)
+        
+    plt.ylim([-5, 5])      
+    plt.xlim([-0.5, st[~0] + 0.5])
+    plt.title('raw spikes, name: {}'.format(fname))
+    
+    plt.subplot2grid((3, 3), (2,0), colspan=3)
+    for s in st[burst_spikes]:
+        plt.plot([s, s], [-1, 1], color='red', lw=0.3)
+        
+    for b in burst_bunches:
+        plt.plot([b[0], b[~0]], [-1.2, -1.2], color='green', lw=0.5)
+    
+    plt.ylim([-5, 5])
+    plt.xlim([-0.5, st[~0] + 0.5])
+    plt.title('burst spikes, ai: {}'.format(round(np.median(isi)/np.mean(isi), 3)))  
+    plt.show()  
+
 
 
 def detect_with_hsmm(spikes, args):
@@ -190,14 +262,6 @@ def detect_with_rs(spikes, args):
         burst_spikes[s:e] = True
 
     return burst_spikes
-
-
-def detect_with_rgs(spikes, args):
-    data = [spikes]
-    bursts, pauses = bp_summary(data)
-
-    return bursts, pauses
-
 
 
 def detect_with_logisi(spikes, args):
@@ -230,7 +294,6 @@ def detect_with_ps(spikes, args):
         thresh = args.si_thresh
     except:
         thresh = 3
-    # print thresh
 
     spikes_r = ro.FloatVector(spikes)
 
@@ -288,7 +351,7 @@ def main(args):
     algo = args.algorithm
 
     if algo == 'vitek':
-        detect_func = detect_with_vitek
+        detect_func = detect_plot_vitek
     elif algo == 'hsmm':
         detect_func = detect_with_hsmm
     elif algo == 'rs':
@@ -303,16 +366,17 @@ def main(args):
         r = neo.io.NeuroExplorerIO(filename=data_file)
     elif ext == 'smr':
         r = neo.io.Spike2IO(filename=data_file)
-    blks = r.read(cascade=True, lazy=False)
-    for blk in blks:
-        for seg in blk.segments:
-            for st in seg.spiketrains:
-                spikes = np.array(st)
-                if len(spikes) > 50:
-                    burst_idx, bunches = detect_func(spikes, args)
 
-                    if args.plot:
-                        plot_spikes(spikes, burst_idx)
+    for name, st in events_iterator(r):
+        spikes = np.array(st)
+        if len(spikes) > 50:
+            detect_func(spikes, name, args)
+
+
+    for name, st in spiketrains_iterator(r):
+        spikes = np.array(st)
+        if len(spikes) > 50:
+            detect_func(spikes, name, args)
 
 
 if __name__ == '__main__':
@@ -320,16 +384,20 @@ if __name__ == '__main__':
 
     parser.add_argument('--data_file', type=str, required=True,
                         help='Nex data file with spikes')
-    parser.add_argument('--algorithm', type=str, default='hist',
+    parser.add_argument('--algorithm', type=str, default='vitek',
                         help='Which algorithm use in spike detection')
     parser.add_argument('--skewness', type=float, default=1.,
                         help='Skewness param')
     parser.add_argument('--prob_threshold', type=float, default=0.5,
                         help='probability threshold for hsmm algorithm')
-    parser.add_argument('--plot', action='store_true', default=False,
+    parser.add_argument('--plot', action='store_true', default=True,
                         help='Plot burst and non burst spikes?')
-    parser.add_argument('--min_spike_count', type=int, default=2,
+    parser.add_argument('--min_spikes', type=int, default=3,
                         help='Min spike count for burst bunch')
+    parser.add_argument('--bin_func', type=str, default='discharge',
+                        help='Function for bin calculation')
+    parser.add_argument('--discharge_coeff', type=float, default=2.,
+                        help='Coefficient of disharge rate multiplication')
 
     args = parser.parse_args()
 
