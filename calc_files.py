@@ -73,7 +73,6 @@ def calc_stats(spikes):
     df['burst_behaviour'] = calc_burst_behavior(time_int, int(np.ceil(df['firing_rate']/10)))
     df['burst_percent'] = calc_burst_percent(time_int)
     
-    # df['approximate_entropy'] = approximate_entropy(time_int, 2, 3)
     df['dfa'] = nolds.dfa(time_int)
     df['sampen'] = nolds.sampen(time_int)
     df['corr_dim'] = nolds.corr_dim(time_int, 2)

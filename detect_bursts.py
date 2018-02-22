@@ -90,8 +90,8 @@ def events_iterator(handler):
 def calc_discharge_rate(spikes):
     return 1.*len(spikes)/(spikes[~0] - spikes[0])
 
-def bin_by_discharge(spikes, coeff=2):
-    return coeff/calc_discharge_rate(spikes)
+def bin_by_discharge(spikes):
+    return 1./calc_discharge_rate(spikes)
 
 
 def median_of_three_smoothing(hist):
@@ -109,6 +109,7 @@ def find_by_bin(hist):
     for i in range(1, hist.shape[0] - 1):
         if hist[i] < hist[i-1] and hist[i] <= hist[i+1]:
             d = i
+            print('found by bin!')
             break
 
     return d
@@ -116,12 +117,17 @@ def find_by_bin(hist):
 
 def find_by_slope(hist):
     d = None
-    slope, _, _, _, _ = scipy.stats.linregress(list(range(len(hist))), hist)
-    slope = abs(slope)
+
+    prev_slope = abs(hist[1] - hist[0])
     for i in range(1, hist.shape[0]):
-        if abs(hist[i] - hist[i-1]) < slope:
+        curr_slope = abs(hist[i] - hist[i-1])
+
+        if curr_slope < prev_slope:
             d = i
             break
+
+        prev_slope = curr_slope
+
 
     return d
 
@@ -143,19 +149,28 @@ def calc_bin_isi_std(spikes):
     return np.std(isi)
 
 
+def calc_bin_median(spikes):
+    isi = spikes[1:] - spikes[:-1]
+    return np.median(isi)
+
+
 def detect_with_vitek(spikes, args, with_hist=False):
     bin_func_name = args.bin_func
-    coeff = args.discharge_coeff
+    coeff = args.bin_coeff
     min_spikes = args.min_spikes
 
     if bin_func_name == 'discharge':
-        bin_func = lambda s: bin_by_discharge(s, coeff)
-    else:
+        bin_func = bin_by_discharge
+    elif bin_func_name == 'std':
         bin_func = calc_bin_isi_std
+    elif bin_func_name == 'median':
+        bin_func = calc_bin_median
+    else:
+        raise 'Unknown bin function!'
 
     spikes = np.array(spikes)
         
-    t = bin_func(spikes)
+    t = bin_func(spikes)*coeff
 
     counts = list(map(len, clever_split(spikes, t)))
     nums, vals = zip(*sorted(Counter(counts).items()))
@@ -202,10 +217,28 @@ def detect_with_vitek(spikes, args, with_hist=False):
         return burst_spikes, burst_bunches, burst_lens
 
 
-def detect_plot_vitek(spikes, fname, args):    
+def detect_plot_vitek(spikes, fname, args):
+    bin_func_name = args.bin_func
+
+    if bin_func_name == 'discharge':
+        bin_func = bin_by_discharge
+    elif bin_func_name == 'std':
+        bin_func = calc_bin_isi_std
+    elif bin_func_name == 'median':
+        bin_func = calc_bin_median
+    else:
+        raise 'Unknown bin function!'
+
     st = np.array(spikes)
+    bin_size = bin_func(st)*args.bin_coeff
 
     burst_spikes, burst_bunches, _, hist = detect_with_vitek(st, args=args, with_hist=True)
+
+    d = find_threshold_density(hist)
+    isi_t = bin_size/d
+
+    print(d)
+    print(hist)
 
     isi = st[1:] - st[:-1]
     
@@ -215,7 +248,7 @@ def detect_plot_vitek(spikes, fname, args):
     plt.subplot2grid((3, 3), (0,1))
     plt.bar(np.arange(hist.shape[0]), hist)
     plt.plot(SPIKES_RV.pmf(np.arange(hist.shape[0]))*len(st), color='black')
-    plt.title('SDH, method: {}'.format(args.bin_func))
+    plt.title('SDH, method: {}, bin size: {}'.format(args.bin_func, round(bin_size, 3)))
     
     plt.subplot2grid((3, 3), (1,0), colspan=3)
     for s in st:
@@ -234,7 +267,7 @@ def detect_plot_vitek(spikes, fname, args):
     
     plt.ylim([-5, 5])
     plt.xlim([-0.5, st[~0] + 0.5])
-    plt.title('burst spikes, ai: {}'.format(round(np.median(isi)/np.mean(isi), 3)))  
+    plt.title('burst spikes, ai: {}, burst isi: {}'.format(round(np.median(isi)/np.mean(isi), 3), round(isi_t, 3)))  
     plt.show()  
 
 
@@ -396,7 +429,7 @@ if __name__ == '__main__':
                         help='Min spike count for burst bunch')
     parser.add_argument('--bin_func', type=str, default='discharge',
                         help='Function for bin calculation')
-    parser.add_argument('--discharge_coeff', type=float, default=2.,
+    parser.add_argument('--bin_coeff', type=float, default=1.,
                         help='Coefficient of disharge rate multiplication')
 
     args = parser.parse_args()
