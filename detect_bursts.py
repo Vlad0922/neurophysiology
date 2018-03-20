@@ -56,9 +56,6 @@ def plot_spikes(spikes, burst_spikes):
 
     plt.show()
 
-
-SPIKES_RV = scipy.stats.poisson(1.)
-
 def clever_split(arr, step):
     res = list()
     
