@@ -14,7 +14,7 @@ from oscore import *
 
 import argparse
 
-from detect_bursts import detect_with_logisi, detect_with_cma, detect_with_ps
+from detect_bursts import detect_with_vitek
 
 
 from collections import namedtuple, defaultdict
@@ -107,7 +107,8 @@ def main(args):
     for root, subdirs, files in os.walk(dist_dir):
 
         for full_name, f_name in [(os.path.join(root, f_name), f_name) for f_name in files]:
-            patient = full_name.split(os.sep)[3]
+            patient = full_name.split(os.sep)[~1]
+            print(patient)
             ext = full_name[-3:].lower()
 
             if ext == 'smr' and False:
@@ -170,6 +171,7 @@ if __name__ == '__main__':
     parser.add_argument('--dist_file', type=str, required=True,
                         help='File with results')
     parser.add_argument('--si_thresh', type=float, help='S parameter for PS method')
+    parser.add_argument('--bin_func', type=str, default='discharge')
 
     args = parser.parse_args()
 

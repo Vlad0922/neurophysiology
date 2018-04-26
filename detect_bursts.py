@@ -106,7 +106,6 @@ def find_by_bin(hist):
     for i in range(1, hist.shape[0] - 1):
         if hist[i] < hist[i-1] and hist[i] <= hist[i+1]:
             d = i
-            print('found by bin!')
             break
 
     return d
@@ -152,18 +151,9 @@ def calc_bin_median(spikes):
 
 
 def detect_with_vitek(spikes, args, with_hist=False):
-    bin_func_name = args.bin_func
-    coeff = args.bin_coeff
-    min_spikes = args.min_spikes
-
-    if bin_func_name == 'discharge':
-        bin_func = bin_by_discharge
-    elif bin_func_name == 'std':
-        bin_func = calc_bin_isi_std
-    elif bin_func_name == 'median':
-        bin_func = calc_bin_median
-    else:
-        raise 'Unknown bin function!'
+    coeff = 1.
+    min_spikes = 3
+    bin_func = bin_by_discharge
 
     spikes = np.array(spikes)
         
