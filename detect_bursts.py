@@ -31,10 +31,9 @@ except:
 
 import neo.io
 
-# importr('pracma')
-# importr('sjemea')
-# ro.r('source("3rdparty/CMA_method.R")')
-# ro.r('source("3rdparty/PS_method.R")')
+importr('pracma')
+importr('sjemea')
+ro.r('source("3rdparty/PS_method.R")')
 
 SPIKES_RV = scipy.stats.poisson(1.)
 

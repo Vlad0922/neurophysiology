@@ -108,7 +108,6 @@ def main(args):
 
         for full_name, f_name in [(os.path.join(root, f_name), f_name) for f_name in files]:
             patient = full_name.split(os.sep)[~1]
-            print(patient)
             ext = full_name[-3:].lower()
 
             if ext == 'smr' and False:
