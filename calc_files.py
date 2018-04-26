@@ -14,7 +14,7 @@ from oscore import *
 
 import argparse
 
-from detect_bursts import detect_with_vitek
+from detect_bursts import detect_with_ps
 
 
 from collections import namedtuple, defaultdict
@@ -85,7 +85,7 @@ def calc_stats(spikes):
         df['oscore_{}_{}'.format(osc_l, osc_h)] = oscore
 
     burst_args = dict_to_tuple({'skewness': 0.75, 'min_spike_count': 4, 'logisi_cutoff':0.1, 'si_threshold':3})
-    burst_mask, burst_bunches, burst_lens = detect_with_vitek(spikes, burst_args)
+    burst_mask, burst_bunches, burst_lens = detect_with_ps(spikes, burst_args)
 
     df['mean_burst_len'] = np.mean(burst_lens)
     df['ratio_burst_time'] = 1.*sum(burst_lens)/(spikes[~0] - spikes[0])
