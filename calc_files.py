@@ -14,7 +14,7 @@ from oscore import *
 
 import argparse
 
-from detect_bursts import detect_with_logisi, find_burst_bunches, detect_with_cma, detect_with_ps
+from detect_bursts import detect_with_logisi, detect_with_cma, detect_with_ps
 
 
 from collections import namedtuple, defaultdict
