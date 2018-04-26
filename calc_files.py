@@ -4,7 +4,7 @@ import os
 
 import neo.io
 
-import nolds
+# import nolds
 
 import pandas as pd
 
@@ -73,10 +73,10 @@ def calc_stats(spikes):
     df['burst_behaviour'] = calc_burst_behavior(time_int, int(np.ceil(df['firing_rate']/10)))
     df['burst_percent'] = calc_burst_percent(time_int)
     
-    df['dfa'] = nolds.dfa(time_int)
-    df['sampen'] = nolds.sampen(time_int)
-    df['corr_dim'] = nolds.corr_dim(time_int, 2)
-    df['hurst_rs'] = nolds.hurst_rs(time_int)
+    # df['dfa'] = nolds.dfa(time_int)
+    # df['sampen'] = nolds.sampen(time_int)
+    # df['corr_dim'] = nolds.corr_dim(time_int, 2)
+    # df['hurst_rs'] = nolds.hurst_rs(time_int)
 
     for (osc_l, osc_h) in OSCORE_RANGE:
         trial = sec_to_timestamps(data_filtered, DEFAULT_FREQUENCY).tolist()
