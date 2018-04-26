@@ -151,57 +151,60 @@ def calc_bin_median(spikes):
 
 
 def detect_with_vitek(spikes, args, with_hist=False):
-    coeff = 1.
-    min_spikes = 3
-    bin_func = bin_by_discharge
+    try:
+        coeff = 1.
+        min_spikes = 3
+        bin_func = bin_by_discharge
 
-    spikes = np.array(spikes)
+        spikes = np.array(spikes)
+            
+        t = bin_func(spikes)*coeff
+
+        counts = list(map(len, clever_split(spikes, t)))
+        nums, vals = zip(*sorted(Counter(counts).items()))
+
+        vals = median_of_three_smoothing(np.array(vals, dtype=float))
+
+        ch2_test = scipy.stats.chisquare(vals, SPIKES_RV.pmf(nums)*len(spikes))[1]
+        skew_test = scipy.stats.skew(counts)
+
+        burst_spikes = np.zeros(spikes.shape[0], dtype=bool)
+        burst_bunches = list()
+        burst_lens = list()  
         
-    t = bin_func(spikes)*coeff
+        if(ch2_test < 0.05 and skew_test > 0.5):
+            d = find_threshold_density(vals)
 
-    counts = list(map(len, clever_split(spikes, t)))
-    nums, vals = zip(*sorted(Counter(counts).items()))
+            isi_t = t/d
+            
+            isi = np.ediff1d(spikes)
+            burst_isi = np.array(isi <= isi_t, dtype=bool)    
+            
+            prev = 0
+            counter = 0
+            for idx, i in enumerate(burst_isi):
+                if i:
+                    counter += 1
+                else:
+                    if counter >= min_spikes - 1:
+                        burst_spikes[prev:idx+1] = True  
+                        burst_bunches.append(spikes[prev:idx+1])
+                        burst_lens.append(spikes[idx] - spikes[prev])
 
-    vals = median_of_three_smoothing(np.array(vals, dtype=float))
-
-    ch2_test = scipy.stats.chisquare(vals, SPIKES_RV.pmf(nums)*len(spikes))[1]
-    skew_test = scipy.stats.skew(counts)
-
-    burst_spikes = np.zeros(spikes.shape[0], dtype=bool)
-    burst_bunches = list()
-    burst_lens = list()  
-    
-    if(ch2_test < 0.05 and skew_test > 0.5):
-        d = find_threshold_density(vals)
-
-        isi_t = t/d
-        
-        isi = np.ediff1d(spikes)
-        burst_isi = np.array(isi <= isi_t, dtype=bool)    
-        
-        prev = 0
-        counter = 0
-        for idx, i in enumerate(burst_isi):
-            if i:
-                counter += 1
-            else:
-                if counter >= min_spikes - 1:
-                    burst_spikes[prev:idx+1] = True  
-                    burst_bunches.append(spikes[prev:idx+1])
-                    burst_lens.append(spikes[idx] - spikes[prev])
-
-                counter = 0   
-                prev = idx + 1
-        
-        if counter >= min_spikes - 1:  
-            burst_spikes[prev:idx+1] = True  
-            burst_bunches.append(spikes[prev:idx+1])
-            burst_lens.append(spikes[idx] - spikes[prev])
-        
-    if with_hist:
-        return burst_spikes, burst_bunches, burst_lens, vals
-    else:
-        return burst_spikes, burst_bunches, burst_lens
+                    counter = 0   
+                    prev = idx + 1
+            
+            if counter >= min_spikes - 1:  
+                burst_spikes[prev:idx+1] = True  
+                burst_bunches.append(spikes[prev:idx+1])
+                burst_lens.append(spikes[idx] - spikes[prev])
+            
+        if with_hist:
+            return burst_spikes, burst_bunches, burst_lens, vals
+        else:
+            return burst_spikes, burst_bunches, burst_lens
+    except:
+        return np.zeros(spikes.shape[0], dtype=int), [], []
 
 
 def detect_plot_vitek(spikes, fname, args):
