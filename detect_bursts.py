@@ -114,11 +114,11 @@ def find_by_bin(hist):
 def find_by_slope(hist):
     d = None
 
-    prev_slope = abs(hist[1] - hist[0])
+    prev_slope = hist[1] - hist[0]
     for i in range(1, hist.shape[0]):
-        curr_slope = abs(hist[i] - hist[i-1])
+        curr_slope = hist[i] - hist[i-1]
 
-        if curr_slope < prev_slope:
+        if abs(curr_slope) < (prev_slope) or (prev_slope < 0 and curr_slope > 0):
             d = i
             break
 
