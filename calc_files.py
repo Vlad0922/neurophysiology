@@ -1,21 +1,18 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
+import glob
 
 import neo.io
 
-# import nolds
-
 import pandas as pd
 
-from utility import *
 from statistics import *
 from oscore import *
 
 import argparse
 
-from detect_bursts import detect_with_ps
-
+from detect_bursts import detect_with_ps, detect_with_vitek
 
 from collections import namedtuple, defaultdict
 
@@ -43,12 +40,17 @@ def safe_mean(arr):
         return np.mean(arr)
 
 
-def calc_stats(spikes):
+def calc_stats(spikes, args):
+    if args.burst_algo == 'PS':
+        burst_method = detect_with_ps
+    elif args.burst_algo == 'vitek':
+        burst_method = detect_with_vitek
+
     data_filtered = spikes
     time_int = calc_intervals(spikes)
 
     if len(time_int) == 0:
-        raise 'Empty filter result!'
+        raise RuntimeError('Empty filter result!')
 
     df = dict()
     df['burst_index'] = calc_burst_index(time_int, bbh=DEFAULT_BBH, bbl=DEFAULT_BBL, brep=DEFAULT_REPEAT)
@@ -85,7 +87,7 @@ def calc_stats(spikes):
         df['oscore_{}_{}'.format(osc_l, osc_h)] = oscore
 
     burst_args = dict_to_tuple({'skewness': 0.75, 'min_spike_count': 4, 'logisi_cutoff':0.1, 'si_threshold':3})
-    burst_mask, burst_bunches, burst_lens = detect_with_ps(spikes, burst_args)
+    burst_mask, burst_bunches, burst_lens = burst_method(spikes, burst_args)
 
     df['mean_burst_len'] = np.mean(burst_lens)
     df['ratio_burst_time'] = 1.*sum(burst_lens)/(spikes[~0] - spikes[0])
@@ -108,53 +110,46 @@ def main(args):
 
         for full_name, f_name in [(os.path.join(root, f_name), f_name) for f_name in files]:
             patient = full_name.split(os.sep)[~1]
+
             ext = full_name[-3:].lower()
+            if ext != 'nex':
+                continue
 
-            if ext == 'smr' and False:
-                print(full_name)
-                for st in spiketrains_iterator(neo.io.Spike2IO(filename=full_name)):
-                    spikes = np.array(st)
-                    if len(spikes) > 40 and (spikes[~0] - spikes[0] > 5.):
-                        df = calc_stats(spikes, f_name, 'SMR neuron dummy', 'interval dummy')
-                        df = {key: str(val) for key, val in df.items()}
-                        df['patient'] = patient
-                        write_to_excel(dist_file, 'all_results', df, ['doc_name', 'data_name', 'interval_name'])
-            elif ext == 'nex':
-                print(full_name)
-                r = neo.io.NeuroExplorerIO(filename=full_name)
-                for blk in r.read(cascade=True, lazy=False):
-                    for seg in blk.segments:
-                        for st in seg.spiketrains:
-                            name_lower = str(st.name.lower())
-                            if name_lower.startswith('fon'):
-                                spikes = np.array(st)
-                                for interval in seg.epochs:
-                                    int_name = interval.annotations['channel_name'].lower()
-                                    if name_lower.startswith(int_name):
-                                        for s, d in zip(interval.times, interval.durations):
-                                            e = s + d
-                                            spikes_filtered = spikes[np.where((spikes >= s) & (spikes <= e))]
-                                            if len(spikes_filtered) > 40 and (spikes_filtered[~0] - spikes_filtered[0]) > 5.:
-                                                df = calc_stats(spikes_filtered)
-                                                df['patient'] = patient
-                                                df['data_name'] = st.name
-                                                df['doc_name'] = f_name
-                                                df['interval_name'] = int_name
+            print(full_name)
+            r = neo.io.NeuroExplorerIO(filename=full_name)
+            for blk in r.read():
+                for seg in blk.segments:
+                    for st in seg.spiketrains:
+                        name_lower = str(st.name.lower())
+                        print(name_lower)
+                        if name_lower.startswith('fon'):
+                            spikes = np.array(st)
+                            for interval in seg.epochs:
+                                int_name = interval.name.lower()
+                                if name_lower.startswith(int_name):
+                                    for s, d in zip(interval.times, interval.durations):
+                                        e = s + d
+                                        spikes_filtered = spikes[np.where((spikes >= s) & (spikes <= e))]
+                                        if len(spikes_filtered) > 50 and (spikes_filtered[~0] - spikes_filtered[0]) > 5.:
+                                            df = calc_stats(spikes_filtered, args)
+                                            df['patient'] = patient
+                                            df['data_name'] = st.name
+                                            df['doc_name'] = f_name
+                                            df['interval_name'] = int_name
 
-                                                for k in df:
-                                                    all_data[k].append(df[k])
-                            elif name_lower.startswith('allfile') or name_lower.startswith('nw'):
-                                spikes = np.array(st)
-                                if len(spikes) > 75 and (spikes[~0] - spikes[0] > 5.):                                    
-                                    df = calc_stats(spikes)
-                                    df['patient'] = patient
-                                    df['patient'] = patient
-                                    df['data_name'] = st.name
-                                    df['doc_name'] = f_name
-                                    df['interval_name'] = 'allfile'
+                                            for k in df:
+                                                all_data[k].append(df[k])
+                        elif name_lower.startswith('allfile'):
+                            spikes = np.array(st)
+                            if len(spikes) > 50 and (spikes[~0] - spikes[0] > 5.):
+                                df = calc_stats(spikes, args)
+                                df['patient'] = patient
+                                df['data_name'] = st.name
+                                df['doc_name'] = f_name
+                                df['interval_name'] = 'allfile'
 
-                                    for k in df:
-                                        all_data[k].append(df[k])
+                                for k in df:
+                                    all_data[k].append(df[k])
 
     all_data = pd.DataFrame(all_data)
     all_data.to_excel(dist_file, index=False)
@@ -171,6 +166,7 @@ if __name__ == '__main__':
                         help='File with results')
     parser.add_argument('--si_thresh', type=float, help='S parameter for PS method')
     parser.add_argument('--bin_func', type=str, default='discharge')
+    parser.add_argument('--burst_algo', type=str, default='PS')
 
     args = parser.parse_args()
 
