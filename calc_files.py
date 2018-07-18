@@ -47,38 +47,34 @@ def calc_stats(spikes, args):
         burst_method = detect_with_vitek
 
     data_filtered = spikes
-    time_int = calc_intervals(spikes)
+    isi = calc_intervals(spikes)
 
-    if len(time_int) == 0:
+    if len(isi) == 0:
         raise RuntimeError('Empty filter result!')
 
     df = dict()
-    df['burst_index'] = calc_burst_index(time_int, bbh=DEFAULT_BBH, bbl=DEFAULT_BBL, brep=DEFAULT_REPEAT)
-    df['cv'] = calc_cv(time_int)
-    df['nu'] = calc_nu(time_int)
+    df['burst_index'] = calc_burst_index(isi, bbh=DEFAULT_BBH, bbl=DEFAULT_BBL, brep=DEFAULT_REPEAT)
+    df['cv'] = calc_cv(isi)
+    df['diff_entropy (Nu)'] = calc_nu(isi)
     df['frequency_variance'] = calc_freq_var(data_filtered)
-    df['modalirity_burst'] = calc_modalirity_burst(time_int)
-    df['pause_index'] = calc_pause_index(time_int)
-    df['pause_ratio'] = calc_pause_ratio(time_int)
-    df['skewness'] = calc_skewness(time_int)
-    df['kurtoisis'] = calc_kurtosis(time_int)
-    df['AI'] = calc_burst_by_mean(time_int)
+    df['modalirity_burst'] = calc_modalirity_burst(isi)
+    df['pause_index'] = calc_pause_index(isi)
+    df['pause_ratio'] = calc_pause_ratio(isi)
+    df['skewness'] = calc_skewness(isi)
+    df['kurtoisis'] = calc_kurtosis(isi)
+    df['AI'] = calc_burst_by_mean(isi)
     df['type'] = get_type(df['AI'], df['cv'])
-    df['isi_mean'] = np.mean(time_int)
-    df['isi_median'] = np.median(time_int)
-    df['isi_std'] = np.std(time_int)
+    df['isi_mean'] = np.mean(isi)
+    df['isi_median'] = np.median(isi)
+    df['isi_std'] = np.std(isi)
     df['spike_count'] = len(data_filtered)
-    df['filter_length'] = (data_filtered[-1] - data_filtered[0])
+    df['filter_length'] = (data_filtered[~0] - data_filtered[0])
     df['bi_2'] = calc_bi_two(data_filtered)
-    df['lv'] = calc_local_variance(time_int)
+    df['local_variance'] = calc_local_variance(isi)
     df['firing_rate'] = 1.*len(data_filtered)/df['filter_length']
-    df['burst_behaviour'] = calc_burst_behavior(time_int, int(np.ceil(df['firing_rate']/10)))
-    df['burst_percent'] = calc_burst_percent(time_int)
-    
-    # df['dfa'] = nolds.dfa(time_int)
-    # df['sampen'] = nolds.sampen(time_int)
-    # df['corr_dim'] = nolds.corr_dim(time_int, 2)
-    # df['hurst_rs'] = nolds.hurst_rs(time_int)
+    df['burst_behaviour'] = calc_burst_behavior(isi, int(np.ceil(df['firing_rate']/10)))
+    df['burst_percent'] = calc_burst_percent(isi)
+    df['ISI_larger_mean'] = 1.*sum(isi >= df['isi_mean'])/len(isi)
 
     for (osc_l, osc_h) in OSCORE_RANGE:
         trial = sec_to_timestamps(data_filtered, DEFAULT_FREQUENCY).tolist()
@@ -107,25 +103,24 @@ def main(args):
     all_data = defaultdict(list)
 
     for root, subdirs, files in os.walk(dist_dir):
-
         for full_name, f_name in [(os.path.join(root, f_name), f_name) for f_name in files]:
             patient = full_name.split(os.sep)[~1]
 
             ext = full_name[-3:].lower()
+
             if ext != 'nex':
                 continue
 
             print(full_name)
             r = neo.io.NeuroExplorerIO(filename=full_name)
-            for blk in r.read():
+            for blk in r.read(cascade=True, lazy=False):
                 for seg in blk.segments:
                     for st in seg.spiketrains:
                         name_lower = str(st.name.lower())
-                        print(name_lower)
                         if name_lower.startswith('fon'):
                             spikes = np.array(st)
                             for interval in seg.epochs:
-                                int_name = interval.name.lower()
+                                int_name = interval.annotations['channel_name'].lower()
                                 if name_lower.startswith(int_name):
                                     for s, d in zip(interval.times, interval.durations):
                                         e = s + d
@@ -152,6 +147,11 @@ def main(args):
                                     all_data[k].append(df[k])
 
     all_data = pd.DataFrame(all_data)
+    all_data = all_data[['patient', 'doc_name', 'data_name', 'interval_name', 'filter_length', 'spike_count', 'type', 'firing_rate', 'cv', 'AI', 'frequency_variance',  'isi_mean', 'isi_median',
+                          'isi_std', 'skewness', 'kurtoisis', 'local_variance',  'diff_entropy (Nu)', 'ISI_larger_mean', 'burst_index', 'burst_spike_percent', 'ratio_burst_time',  
+                          'interburst_interval',  'mean_burst_len',  'mean_isi_in_burst', 'mean_spikes_in_burst', 'median_isi_in_burst', 'pause_index',
+                          'oscore_3.0_8.0',  'oscore_8.0_12.0', 'oscore_12.0_20.0', 'oscore_20.0_30.0', 'oscore_30.0_60.0', 'oscore_60.0_90.0']];
+
     all_data.to_excel(dist_file, index=False)
 
     print('done')
@@ -160,12 +160,10 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Detect bursts in spike data')
 
-    parser.add_argument('--data_dir', type=str, required=True,
-                        help='Input directory')
-    parser.add_argument('--dist_file', type=str, required=True,
-                        help='File with results')
-    parser.add_argument('--si_thresh', type=float, help='S parameter for PS method')
-    parser.add_argument('--bin_func', type=str, default='discharge')
+    parser.add_argument('--data_dir',   type=str, required=True, help='Input directory')
+    parser.add_argument('--dist_file',  type=str, required=True, help='File with results')
+    parser.add_argument('--si_thresh',  type=float, help='S parameter for PS method')
+    parser.add_argument('--bin_func',   type=str, default='discharge')
     parser.add_argument('--burst_algo', type=str, default='PS')
 
     args = parser.parse_args()
