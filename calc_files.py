@@ -117,11 +117,11 @@ def main(args):
                 for seg in blk.segments:
                     for st in seg.spiketrains:
                         name_lower = str(st.name.lower())
-                        if name_lower.startswith('fon'):
+                        if name_lower.startswith('fon') or args.all:
                             spikes = np.array(st)
                             for interval in seg.epochs:
                                 int_name = interval.annotations['channel_name'].lower()
-                                if name_lower.startswith(int_name):
+                                if name_lower.startswith(int_name) or args.all:
                                     for s, d in zip(interval.times, interval.durations):
                                         e = s + d
                                         spikes_filtered = spikes[np.where((spikes >= s) & (spikes <= e))]
@@ -165,6 +165,7 @@ if __name__ == '__main__':
     parser.add_argument('--si_thresh',  type=float, help='S parameter for PS method')
     parser.add_argument('--bin_func',   type=str, default='discharge')
     parser.add_argument('--burst_algo', type=str, default='PS')
+    parser.add_argument('--all', type=bool, default=False)
 
     args = parser.parse_args()
 
