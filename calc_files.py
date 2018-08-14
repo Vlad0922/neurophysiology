@@ -85,6 +85,7 @@ def calc_stats(spikes, args):
     burst_args = dict_to_tuple({'skewness': 0.75, 'min_spike_count': 4, 'logisi_cutoff':0.1, 'si_threshold':3})
     burst_mask, burst_bunches, burst_lens = burst_method(spikes, burst_args)
 
+    df['burst_rate'] = 1.*len(burst_lens)/(spikes[~0] - spikes[0])
     df['mean_burst_len'] = np.mean(burst_lens)
     df['ratio_burst_time'] = 1.*sum(burst_lens)/(spikes[~0] - spikes[0])
     df['burst_spike_percent'] = 1.*np.sum(burst_mask)/len(spikes)
@@ -150,7 +151,7 @@ def main(args):
 
     all_data = pd.DataFrame(all_data)
     all_data = all_data[['patient', 'doc_name', 'data_name', 'interval_name', 'filter_length', 'spike_count', 'type', 'firing_rate', 'cv', 'AI', 'frequency_variance',  'isi_mean', 'isi_median',
-                          'isi_std', 'skewness', 'kurtoisis', 'local_variance',  'diff_entropy (Nu)', 'ISI_larger_mean', 'burst_index', 'burst_spike_percent', 'ratio_burst_time',  
+                          'isi_std', 'skewness', 'kurtoisis', 'local_variance',  'diff_entropy (Nu)', 'ISI_larger_mean', 'burst_index', 'burst_spike_percent', 'ratio_burst_time', 'burst_rate',  
                           'interburst_interval',  'mean_burst_len',  'mean_isi_in_burst', 'mean_spikes_in_burst', 'median_isi_in_burst', 'pause_index',
                           'oscore_3.0_8.0',  'oscore_8.0_12.0', 'oscore_12.0_20.0', 'oscore_20.0_30.0', 'oscore_30.0_60.0', 'oscore_60.0_90.0']];
 
