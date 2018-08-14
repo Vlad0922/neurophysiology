@@ -106,9 +106,10 @@ def main(args):
         for full_name, f_name in [(os.path.join(root, f_name), f_name) for f_name in files]:
             patient = full_name.split(os.sep)[~1]
 
-            ext = full_name[-3:].lower()
+            ext = full_name.split('.')[~0].lower()
+            print(ext)
 
-            if ext != 'nex':
+            if not('nex' in ext):
                 continue
 
             print(full_name)
@@ -122,6 +123,7 @@ def main(args):
                             for interval in seg.epochs:
                                 int_name = interval.annotations['channel_name'].lower()
                                 if name_lower.startswith(int_name) or args.all:
+                                    print('\t {:15} \t {:15}'.format(name_lower, int_name))
                                     for s, d in zip(interval.times, interval.durations):
                                         e = s + d
                                         spikes_filtered = spikes[np.where((spikes >= s) & (spikes <= e))]

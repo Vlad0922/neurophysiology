@@ -81,6 +81,23 @@ def _check_arg(x, xname):
         raise ValueError('%s must be one-dimensional.' % xname)
     return x
 
+def chunking_dot(big_matrix, small_matrix, chunk_size=100):
+    # Make a copy if the array is not already contiguous
+    small_matrix = np.ascontiguousarray(small_matrix)
+    is_flat = (len(small_matrix.shape) == 1)
+    if is_flat:        
+        small_matrix = small_matrix.reshape((-1,1))
+
+    R = np.empty((big_matrix.shape[0], small_matrix.shape[1]))
+    for i in range(0, R.shape[0], chunk_size):
+        end = i + chunk_size
+        R[i:end] = np.dot(big_matrix[i:end], small_matrix)
+
+    if is_flat:
+        R = R.ravel()
+
+    return R
+
 def autocorrelation(x, maxlag):
     """
     Autocorrelation with a maximum number of lags.
@@ -96,7 +113,7 @@ def autocorrelation(x, maxlag):
     p = np.pad(x.conj(), maxlag, mode='constant')
     T = as_strided(p[maxlag:], shape=(maxlag+1, len(x) + maxlag),
                    strides=(-p.strides[0], p.strides[0]))
-    return T.dot(p[maxlag:].conj())
+    return chunking_dot(T, p[maxlag:].conj())
 
 
 def crosscorrelation(x, y, maxlag):
@@ -116,7 +133,7 @@ def crosscorrelation(x, y, maxlag):
     T = as_strided(py[2*maxlag:], shape=(2*maxlag+1, len(y) + 2*maxlag),
                    strides=(-py.strides[0], py.strides[0]))
     px = np.pad(x, maxlag, mode='constant')
-    return T.dot(px)
+    return chunking_dot(T, px)
 
 
 def oscore_spikes(spikes_per_trials, trial_len, low_bound, high_bound, freq):
