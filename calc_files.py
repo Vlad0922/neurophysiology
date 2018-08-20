@@ -97,6 +97,16 @@ def calc_stats(spikes, args):
     return df
 
 
+def merge_st(st_list):
+    offset = st_list[0][~0];
+
+    for i in range(1, len(st_list)):
+        st_list[i] = st_list[i][1:] - st_list[i][0] + offset
+        offset = st_list[i][~0]
+
+    return np.concatenate(st_list)
+
+
 def main(args):
     dist_dir = args.data_dir
     dist_file = '{}.xls'.format(args.dist_file)
@@ -125,18 +135,25 @@ def main(args):
                                 int_name = interval.annotations['channel_name'].lower()
                                 if name_lower.startswith(int_name) or args.all:
                                     print('\t {:15} \t {:15}'.format(name_lower, int_name))
+                                    int_spikes = list()
+                                    interval_names = list()
                                     for s, d in zip(interval.times, interval.durations):
                                         e = s + d
                                         spikes_filtered = spikes[np.where((spikes >= s) & (spikes <= e))]
+                                    
                                         if len(spikes_filtered) > 50 and (spikes_filtered[~0] - spikes_filtered[0]) > 5.:
-                                            df = calc_stats(spikes_filtered, args)
-                                            df['patient'] = patient
-                                            df['data_name'] = st.name
-                                            df['doc_name'] = f_name
-                                            df['interval_name'] = int_name
+                                            int_spikes.append(spikes_filtered)
+                                            interval_names.append(int_name)
 
-                                            for k in df:
-                                                all_data[k].append(df[k])
+                                    spikes_merged = merge_st(int_spikes) # часть алгоритмов (oscore) требует спайков, а не иси, поэтому смержим ST
+                                    df = calc_stats(spikes_merged, args)
+                                    df['patient'] = patient
+                                    df['data_name'] = st.name
+                                    df['doc_name'] = f_name
+                                    df['interval_name'] = ','.join(interval_names)
+
+                                    for k in df:
+                                        all_data[k].append(df[k])
                         elif name_lower.startswith('allfile'):
                             spikes = np.array(st)
                             if len(spikes) > 50 and (spikes[~0] - spikes[0] > 5.):
