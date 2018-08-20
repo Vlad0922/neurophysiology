@@ -60,8 +60,8 @@ def read_alphaomega(fname):
     r = neo.io.AlphaOmegaIO(filename=fname)
     for blk in r.read(cascade=True, lazy=False):
         for seg in blk.segments:
-            lfp_signals = sorted(sg.name for sg in seg.analogsignals if sg.name.lower().startswith('lfp'))[:OK_SIGNALS_COUNT]
-            spk_signals = sorted(sg.name for sg in seg.analogsignals if sg.name.lower().startswith('spk'))[:OK_SIGNALS_COUNT]
+            lfp_signals = sorted(sg.name for sg in seg.analogsignals if sg.name.lower().startswith('lfp'))
+            spk_signals = sorted(sg.name for sg in seg.analogsignals if sg.name.lower().startswith('spk'))
             for sg in seg.analogsignals:
                 if sg.name in lfp_signals or sg.name in spk_signals:
                     data_dict[sg.name] = [v[0] for v in np.array(sg)]
