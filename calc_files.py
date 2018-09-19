@@ -149,15 +149,16 @@ def main(args):
                                             int_spikes.append(spikes_filtered)
                                             interval_names.append(int_name)
 
-                                    spikes_merged = merge_st(int_spikes) # часть алгоритмов (oscore) требует спайков, а не иси, поэтому смержим ST
-                                    df = calc_stats(spikes_merged, args)
-                                    df['patient'] = patient
-                                    df['data_name'] = st.name
-                                    df['doc_name'] = f_name
-                                    df['interval_name'] = ','.join(interval_names)
+                                    if len(int_spikes) > 0:
+                                        spikes_merged = merge_st(int_spikes) # часть алгоритмов (oscore) требует спайков, а не иси, поэтому смержим ST
+                                        df = calc_stats(spikes_merged, args)
+                                        df['patient'] = patient
+                                        df['data_name'] = st.name
+                                        df['doc_name'] = f_name
+                                        df['interval_name'] = ','.join(interval_names)
 
-                                    for k in df:
-                                        all_data[k].append(df[k])
+                                        for k in df:
+                                            all_data[k].append(df[k])
                         elif name_lower.startswith('allfile'):
                             spikes = np.array(st)
                             if len(spikes) > 50 and (spikes[~0] - spikes[0] > 5.):
