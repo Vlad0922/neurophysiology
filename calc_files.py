@@ -98,6 +98,7 @@ def calc_stats(spikes, args):
 
 
 def merge_st(st_list):
+    print(st_list)
     offset = st_list[0][~0];
 
     for i in range(1, len(st_list)):
@@ -108,6 +109,7 @@ def merge_st(st_list):
 
 
 def main(args):
+    print(args.all)
     dist_dir = args.data_dir
     dist_file = '{}.xls'.format(args.dist_file)
 
@@ -118,7 +120,6 @@ def main(args):
             patient = full_name.split(os.sep)[~1]
 
             ext = full_name.split('.')[~0].lower()
-            print(ext)
 
             if not('nex' in ext):
                 continue
@@ -140,8 +141,11 @@ def main(args):
                                     for s, d in zip(interval.times, interval.durations):
                                         e = s + d
                                         spikes_filtered = spikes[np.where((spikes >= s) & (spikes <= e))]
+                                        print(s, e, spikes[0], spikes[~0])
+
+                                        print(len(spikes_filtered), spikes_filtered[~0] - spikes_filtered[0])
                                     
-                                        if len(spikes_filtered) > 50 and (spikes_filtered[~0] - spikes_filtered[0]) > 5.:
+                                        if len(spikes_filtered) > 50:
                                             int_spikes.append(spikes_filtered)
                                             interval_names.append(int_name)
 
