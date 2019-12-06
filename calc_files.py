@@ -10,28 +10,21 @@ import pandas as pd
 from statistics import *
 from oscore import *
 
+import subprocess
+
 import argparse
 
 from detect_bursts import detect_with_ps, detect_with_vitek
 
 from collections import namedtuple, defaultdict
 
+from utility import spiketrains_iterator
 
 ISP_RANGE = [(1, 3), (3, 8), (8, 13), (13, 30), (30, 100)]
 
 
 def dict_to_tuple(dictionary):
     return namedtuple('GenericDict', dictionary.keys())(**dictionary)
-
-
-def spiketrains_iterator(handler):
-    for blk in handler.read(cascade=True, lazy=False):
-        for seg in blk.segments:
-            for st in seg.spiketrains:
-                yield st
-
-    raise StopIteration
-
 
 def safe_mean(arr):
     if len(arr) == 0:
@@ -98,13 +91,31 @@ def calc_stats(spikes, args):
 
 
 def merge_st(st_list):
-    offset = st_list[0][~0];
+    offset = st_list[0][~0]
 
     for i in range(1, len(st_list)):
         st_list[i] = st_list[i][1:] - st_list[i][0] + offset
         offset = st_list[i][~0]
 
     return np.concatenate(st_list)
+
+
+def detect_clusters(dist_dir, n_clusters):
+    args = ('python', '--data_dir', dist_dir, '--dist_file', 'clusters', '--clusters', str(n_clusters))
+    p = subprocess.Popen(args, stdout = subprocess.PIPE, stderr=subprocess.STDOUT)
+    p.wait()
+
+
+def merge_with_clusters(stats_data, clusters_data):
+    clusters_with_id = clusters_data.copy()
+    clusters_with_id['id'] = clusters_with_id[['patient', 'doc_name', 'data_name', 'interval_name']].apply('_'.join, axis=1)
+
+    stats_with_id = stats_data.copy()
+    stats_with_id['id'] = stats_with_id[['patient', 'doc_name', 'data_name', 'interval_name']].apply('_'.join, axis=1)
+
+    merged = pd.merge(stats_with_id, clusters_with_id[['id', 'Pattern']], on='id', how='left')
+
+    return merged.drop('id', axis=1)
 
 
 def main(args):
@@ -121,17 +132,18 @@ def main(args):
 
             if not('nex' in ext):
                 continue
-
+            
+            # Это какой-то ад, надо изменить
             print(full_name)
             r = neo.io.NeuroExplorerIO(filename=full_name)
-            for blk in r.read(cascade=True, lazy=False):
+            for blk in r.read(lazy=False):
                 for seg in blk.segments:
                     for st in seg.spiketrains:
                         name_lower = str(st.name.lower())
                         if name_lower.startswith('fon') or args.all:
                             spikes = np.array(st)
                             for interval in seg.epochs:
-                                int_name = interval.annotations['channel_name'].lower()
+                                int_name = interval.name.lower()
                                 if name_lower.startswith(int_name) or args.all:
                                     print('\t {:15} \t {:15}'.format(name_lower, int_name))
                                     int_spikes = list()
@@ -170,9 +182,14 @@ def main(args):
     all_data = all_data[['patient', 'doc_name', 'data_name', 'interval_name', 'filter_length', 'spike_count', 'type', 'firing_rate', 'cv', 'AI', 'frequency_variance',  'isi_mean', 'isi_median',
                           'isi_std', 'skewness', 'kurtoisis', 'local_variance',  'diff_entropy (Nu)', 'ISI_larger_mean', 'burst_index', 'burst_spike_percent', 'ratio_burst_time', 'burst_rate',  
                           'interburst_interval',  'mean_burst_len',  'mean_isi_in_burst', 'mean_spikes_in_burst', 'median_isi_in_burst', 'pause_index',
-                          'oscore_3.0_8.0',  'oscore_8.0_12.0', 'oscore_12.0_20.0', 'oscore_20.0_30.0', 'oscore_30.0_60.0', 'oscore_60.0_90.0']];
+                          'oscore_3.0_8.0',  'oscore_8.0_12.0', 'oscore_12.0_20.0', 'oscore_20.0_30.0', 'oscore_30.0_60.0', 'oscore_60.0_90.0']]
 
-    all_data.to_excel(dist_file, index=False)
+    detect_clusters(dist_dir, args.n_clusters)
+
+    clusters_data = pd.read_excel('clusters.xlsx')
+
+    merged_data = merge_with_clusters(all_data, clusters_data)
+    merged_data.to_excel(dist_file, index=False)
 
     print('done')
 
@@ -184,6 +201,7 @@ if __name__ == '__main__':
     parser.add_argument('--dist_file',  type=str, required=True, help='File with results')
     parser.add_argument('--si_thresh',  type=float, help='S parameter for PS method')
     parser.add_argument('--bin_func',   type=str, default='discharge')
+    parser.add_argument('--n_clusters', type=int, default=4)
     parser.add_argument('--burst_algo', type=str, default='PS')
     parser.add_argument('--all', type=bool, default=False)
 

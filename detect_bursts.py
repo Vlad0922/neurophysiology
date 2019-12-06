@@ -24,6 +24,8 @@ from rpy2.robjects import FloatVector
 from rpy2.robjects import pandas2ri
 pandas2ri.activate()
 
+from utility import spiketrains_iterator, events_iterator
+
 try:
     import seaborn as sns
 except:
@@ -68,20 +70,6 @@ def clever_split(arr, step):
         res.append(curr)
     
     return res
-
-
-def spiketrains_iterator(handler):
-    for blk in handler.read(cascade=True, lazy=False):
-        for seg in blk.segments:
-            for st in seg.spiketrains:
-                yield st.name, np.array(st)
-                
-def events_iterator(handler):
-    for blk in handler.read(cascade=True, lazy=False):
-        for seg in blk.segments:
-            for st in seg.events:
-                yield st.annotations['channel_name'], np.array(st)
-
 
 def calc_discharge_rate(spikes):
     return 1.*len(spikes)/(spikes[~0] - spikes[0])
@@ -389,13 +377,15 @@ def main(args):
     elif ext == 'smr':
         r = neo.io.Spike2IO(filename=data_file)
 
-    for name, st in events_iterator(r):
+    for st in events_iterator(r):
+        name = st.name
         spikes = np.array(st)
         if len(spikes) > 50:
             detect_func(spikes, name, args)
 
 
-    for name, st in spiketrains_iterator(r):
+    for st in spiketrains_iterator(r):
+        name = st.name
         spikes = np.array(st)
         if len(spikes) > 50:
             detect_func(spikes, name, args)

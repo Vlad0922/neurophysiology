@@ -7,7 +7,7 @@ from scipy.special import psi
 from scipy.stats import variation, kurtosis, skew
 from scipy.signal import periodogram
 
-from oscore import *
+from oscore import oscore_spikes
 
 import copy
 
@@ -55,11 +55,18 @@ def calc_intervals(spike_data, step=1):
 
 
 def calc_cv(intervals):
+    if len(intervals) == 0:
+        return np.nan
+
     return variation(intervals)
 
 
 def calc_nu(intervals, wsize=DEFAULT_WIN_SIZE):
     n = len(intervals)
+
+    if n == 0:
+        return np.nan
+
     m = wsize
 
     if m > n:
@@ -88,6 +95,9 @@ def calc_nu(intervals, wsize=DEFAULT_WIN_SIZE):
 
 
 def calc_burst_index(intervals, bbh=DEFAULT_BBH, bbl=DEFAULT_BBL, brep=DEFAULT_REPEAT):
+    if len(intervals) == 0:
+        return np.nan
+
     bg1 = np.array(intervals <= bbh, dtype=int)
     bg2 = np.array(intervals <= bbl, dtype=int)
 
@@ -116,6 +126,9 @@ def calc_burst_index(intervals, bbh=DEFAULT_BBH, bbl=DEFAULT_BBL, brep=DEFAULT_R
 
 
 def calc_bi_two(spikes):
+    if len(spikes) == 0:
+        return np.nan
+
     int_1 = calc_intervals(spikes, step=1)
     int_2 = calc_intervals(spikes, step=2)
     e_1 = np.mean(int_1)
@@ -124,6 +137,9 @@ def calc_bi_two(spikes):
 
 
 def calc_freq_var(spikes):
+    if len(spikes) == 0:
+        return np.nan
+
     spikes = np.array(spikes)
     res = list()
 
@@ -138,31 +154,40 @@ def calc_freq_var(spikes):
 
 
 def calc_modalirity_burst(intervals, bound=DEFAULT_MODALIRITY_BOUND):
+    if len(intervals) == 0:
+        return np.nan
+
     below = np.sum(intervals < ms_to_sec(bound))
     above = np.sum(intervals >= ms_to_sec(bound))
 
     if above == 0:
-        return 1.
+        return np.nan
     else:
         return below/above
 
 
 def calc_pause_index(intervals, bound=DEFAULT_PAUSE_INDEX_BOUND):
+    if len(intervals) == 0:
+        return np.nan
+
     below = np.sum(intervals < ms_to_sec(bound))
     above = np.sum(intervals >= ms_to_sec(bound))
 
     if below == 0:
-        return 1.
+        return np.nan
     else:
         return above/below
 
 
 def calc_pause_ratio(intervals, bound=DEFAULT_PAUSE_RATIO_BOUND):
+    if len(intervals) == 0:
+        return np.nan
+
     above = np.sum(intervals >= ms_to_sec(bound)) + np.sum(intervals[intervals >= ms_to_sec(bound)])
     below = np.sum(intervals < ms_to_sec(bound)) + np.sum(intervals[intervals < ms_to_sec(bound)])
 
     if below == 0:
-        return 1.
+        return np.nan
     else:
         return above/below
 
@@ -190,19 +215,31 @@ def calc_burst_behavior(intervals, spikes_count, bound=DEFAULT_BURST_BEHAVIOUR_B
 
 
 def calc_local_variance(isi):
+    if len(isi) == 0:
+        return np.nan
+
     isi = np.asarray(isi)
     return 3.*np.sum(np.power(np.diff(isi)/(isi[:-1] + isi[1:]), 2))/(len(isi)-1)
 
 
 def calc_burst_by_mean(intervals):
+    if len(intervals) == 0:
+        return np.nan
+
     return np.median(intervals)/np.mean(intervals)
 
 
 def calc_skewness(intervals):
+    if len(intervals) == 0:
+        return np.nan
+
     return skew(intervals)
 
 
 def calc_kurtosis(intervals):
+    if len(intervals) == 0:
+        return np.nan
+
     return kurtosis(intervals, fisher=False)
 
 
@@ -216,6 +253,9 @@ def get_type(med_mean, cv):
 
 
 def calc_isp(isi, hz_low, hz_high):
+    if len(isi) == 0:
+        return np.nan
+
     f, Pxx_den = periodogram(isi, DEFAULT_FREQUENCY)
     idx_low = idx_of_nearest(f, hz_low)
     idx_high = idx_of_nearest(f, hz_high)
@@ -224,34 +264,37 @@ def calc_isp(isi, hz_low, hz_high):
 
 
 def calc_burst_percent(isi):
+    if len(isi) == 0:
+        return np.nan
+
     isi = np.array(isi)
     return 1.*np.count_nonzero(isi > np.mean(isi))/len(isi)
 
 def calc_mean_isi_in_burst(bursts):
+    if len(bursts) == 0:
+        return np.nan
+
     isi = list()
     for b in bursts:
         isi.extend(np.ediff1d(b).tolist())
 
-    if len(isi) != 0:
-        return np.mean(isi)
-    else:
-        return 1.
+    return np.mean(isi)
+
 
 def calc_median_isi_in_burst(bursts):
+    if len(bursts) == 0:
+        return np.nan
+
     isi = list()
     for b in bursts:
         isi.extend(np.ediff1d(b).tolist())
 
-    if len(isi) != 0:
-        return np.median(isi)
-    else:
-        return 1.
+    return np.median(isi)
 
 
 def calc_interburst_interval(bursts):
     if len(bursts) < 2:
-        print('We have less then two bursts, dude...')
-        return 0.
+        return np.nan
     
     return np.mean([bursts[i][~0] - bursts[i-1][~0]  for i in range(1, len(bursts))])
 
@@ -260,7 +303,7 @@ def calc_mean_spikes_in_burst(bursts):
     if len(bursts) != 0:
         return np.mean([len(b) for b in bursts])
     else:
-        return 0
+        return np.nan
 
 
 def calc_oscore_for_bursts(bursts):
@@ -268,7 +311,7 @@ def calc_oscore_for_bursts(bursts):
 
     if len(bursts)  == 0:
         for (osc_l, osc_h) in OSCORE_RANGE:
-            res['burst_oscore_{}_{}'.format(osc_l, osc_h)] = 0.
+            res['burst_oscore_{}_{}'.format(osc_l, osc_h)] = np.nan
         
         return res
 
@@ -281,9 +324,9 @@ def calc_oscore_for_bursts(bursts):
             try:
                 oscore = oscore_spikes(timestamps, trial_len, osc_l, osc_h, DEFAULT_FREQUENCY)
             except:
-                oscore = 0.
+                oscore = np.nan
         else:
-            oscore = 0.
+            oscore = np.nan
 
         res['burst_oscore_{}_{}'.format(osc_l, osc_h)] = oscore
 
@@ -293,7 +336,6 @@ def calc_oscore_for_bursts(bursts):
 # thanks to someone
 # https://gist.github.com/f00-/a835909ffd15b9927820d175a48dee41
 def approximate_entropy(U, m, r):
-
     def _maxdist(x_i, x_j):
         return max([abs(ua - va) for ua, va in zip(x_i, x_j)])
 
