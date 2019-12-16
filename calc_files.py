@@ -3,7 +3,7 @@ import sys
 import os
 import glob
 
-import neo.io
+import nexfile
 
 import pandas as pd
 
@@ -22,6 +22,7 @@ from utility import spiketrains_iterator
 
 ISP_RANGE = [(1, 3), (3, 8), (8, 13), (13, 30), (30, 100)]
 
+from spike_filter import apply_intervals, get_intervals, get_spiketrains
 
 def dict_to_tuple(dictionary):
     return namedtuple('GenericDict', dictionary.keys())(**dictionary)
@@ -100,8 +101,8 @@ def merge_st(st_list):
     return np.concatenate(st_list)
 
 
-def detect_clusters(dist_dir, n_clusters):
-    args = ('python', '--data_dir', dist_dir, '--dist_file', 'clusters', '--clusters', str(n_clusters))
+def detect_clusters(data_dir, n_clusters):
+    args = ('python', 'compute_clusters.py', '--data_dir', data_dir, '--dist_file', 'clusters', '--clusters', str(n_clusters))
     p = subprocess.Popen(args, stdout = subprocess.PIPE, stderr=subprocess.STDOUT)
     p.wait()
 
@@ -133,51 +134,26 @@ def main(args):
             if not('nex' in ext):
                 continue
             
-            # Это какой-то ад, надо изменить
             print(full_name)
-            r = neo.io.NeuroExplorerIO(filename=full_name)
-            for blk in r.read(lazy=False):
-                for seg in blk.segments:
-                    for st in seg.spiketrains:
-                        name_lower = str(st.name.lower())
-                        if name_lower.startswith('fon') or args.all:
-                            spikes = np.array(st)
-                            for interval in seg.epochs:
-                                int_name = interval.name.lower()
-                                if name_lower.startswith(int_name) or args.all:
-                                    print('\t {:15} \t {:15}'.format(name_lower, int_name))
-                                    int_spikes = list()
-                                    interval_names = list()
-                                    for s, d in zip(interval.times, interval.durations):
-                                        e = s + d
-                                        spikes_filtered = spikes[np.where((spikes >= s) & (spikes <= e))]
-                                    
-                                        if len(spikes_filtered) > 50:
-                                            int_spikes.append(spikes_filtered)
-                                            interval_names.append(int_name)
+            r = nexfile.Reader()
+            file_data = r.ReadNexFile(filePath=full_name)
 
-                                    if len(int_spikes) > 0:
-                                        spikes_merged = merge_st(int_spikes) # часть алгоритмов (oscore) требует спайков, а не иси, поэтому смержим ST
-                                        df = calc_stats(spikes_merged, args)
-                                        df['patient'] = patient
-                                        df['data_name'] = st.name
-                                        df['doc_name'] = f_name
-                                        df['interval_name'] = ','.join(interval_names)
+            spiketrains = list(get_spiketrains(file_data))
+            intervals = list(get_intervals(file_data))
 
-                                        for k in df:
-                                            all_data[k].append(df[k])
-                        elif name_lower.startswith('allfile'):
-                            spikes = np.array(st)
-                            if len(spikes) > 50 and (spikes[~0] - spikes[0] > 5.):
-                                df = calc_stats(spikes, args)
-                                df['patient'] = patient
-                                df['data_name'] = st.name
-                                df['doc_name'] = f_name
-                                df['interval_name'] = 'allfile'
+            for spiketrain_name, interval_name, spikes in apply_intervals(spiketrains, intervals):
+                if len(spikes) < 50 or spikes[~0] - spikes[0] < 5:
+                    continue
+                
+                df = calc_stats(spikes, args)
+                df['patient'] = patient
+                df['data_name'] = spiketrain_name
+                df['doc_name'] = f_name
+                df['interval_name'] = interval_name
 
-                                for k in df:
-                                    all_data[k].append(df[k])
-
+                for k in df:
+                    all_data[k].append(df[k])
+                
     all_data = pd.DataFrame(all_data)
     all_data = all_data[['patient', 'doc_name', 'data_name', 'interval_name', 'filter_length', 'spike_count', 'type', 'firing_rate', 'cv', 'AI', 'frequency_variance',  'isi_mean', 'isi_median',
                           'isi_std', 'skewness', 'kurtoisis', 'local_variance',  'diff_entropy (Nu)', 'ISI_larger_mean', 'burst_index', 'burst_spike_percent', 'ratio_burst_time', 'burst_rate',  
