@@ -2,13 +2,14 @@
 import sys
 import os
 import glob
+import re
 
 import nexfile
 
 import pandas as pd
 
 from statistics import *
-from oscore import *
+from oscore import oscore_spikes
 
 import subprocess
 
@@ -119,6 +120,10 @@ def merge_with_clusters(stats_data, clusters_data):
     return merged.drop('id', axis=1)
 
 
+def extract_depth(filename):
+    vals = re.findall(r"\d+\.\d+", filename.replace('_', '.'))
+    return float(vals[0])
+
 def main(args):
     dist_dir = args.data_dir
     dist_file = '{}.xls'.format(args.dist_file)
@@ -130,6 +135,7 @@ def main(args):
             patient = full_name.split(os.sep)[~1]
 
             ext = full_name.split('.')[~0].lower()
+            depth = extract_depth(f_name)
 
             if not('nex' in ext):
                 continue
@@ -141,7 +147,7 @@ def main(args):
             spiketrains = list(get_spiketrains(file_data))
             intervals = list(get_intervals(file_data))
 
-            for spiketrain_name, interval_name, spikes in apply_intervals(spiketrains, intervals):
+            for spiketrain_name, interval_name, spikes in apply_intervals(spiketrains, intervals, fixed_interval_name=args.interval_name):
                 if len(spikes) < 50 or spikes[~0] - spikes[0] < 5:
                     continue
                 
@@ -150,22 +156,26 @@ def main(args):
                 df['data_name'] = spiketrain_name
                 df['doc_name'] = f_name
                 df['interval_name'] = interval_name
+                df['depth'] = depth
+                df['side'] = 'Right' if f_name.startswith('R') else 'Left'
 
                 for k in df:
                     all_data[k].append(df[k])
                 
     all_data = pd.DataFrame(all_data)
-    all_data = all_data[['patient', 'doc_name', 'data_name', 'interval_name', 'filter_length', 'spike_count', 'type', 'firing_rate', 'cv', 'AI', 'frequency_variance',  'isi_mean', 'isi_median',
+    all_data = all_data[['patient', 'doc_name', 'side', 'depth', 'data_name', 'interval_name', 'filter_length', 'spike_count', 'type', 'firing_rate', 'cv', 'AI', 'frequency_variance',  'isi_mean', 'isi_median',
                           'isi_std', 'skewness', 'kurtoisis', 'local_variance',  'diff_entropy (Nu)', 'ISI_larger_mean', 'burst_index', 'burst_spike_percent', 'ratio_burst_time', 'burst_rate',  
                           'interburst_interval',  'mean_burst_len',  'mean_isi_in_burst', 'mean_spikes_in_burst', 'median_isi_in_burst', 'pause_index',
                           'oscore_3.0_8.0',  'oscore_8.0_12.0', 'oscore_12.0_20.0', 'oscore_20.0_30.0', 'oscore_30.0_60.0', 'oscore_60.0_90.0']]
 
-    detect_clusters(dist_dir, args.n_clusters)
+    if args.compute_clusters:
+        detect_clusters(dist_dir, args.n_clusters)
 
-    clusters_data = pd.read_excel('clusters.xlsx')
+        clusters_data = pd.read_excel('clusters.xlsx')
 
-    merged_data = merge_with_clusters(all_data, clusters_data)
-    merged_data.to_excel(dist_file, index=False)
+        all_data = merge_with_clusters(all_data, clusters_data)
+    
+    all_data.to_excel(dist_file, index=False)
 
     print('done')
 
@@ -177,9 +187,11 @@ if __name__ == '__main__':
     parser.add_argument('--dist_file',  type=str, required=True, help='File with results')
     parser.add_argument('--si_thresh',  type=float, help='S parameter for PS method')
     parser.add_argument('--bin_func',   type=str, default='discharge')
+    parser.add_argument('--compute_clusters', type=bool, default=False)
     parser.add_argument('--n_clusters', type=int, default=4)
     parser.add_argument('--burst_algo', type=str, default='PS')
     parser.add_argument('--all', type=bool, default=False)
+    parser.add_argument('--interval_name', type=str, default=None)
 
     args = parser.parse_args()
 

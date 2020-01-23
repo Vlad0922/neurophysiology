@@ -62,7 +62,7 @@ def calc_cv(spikes):
 
 
 def extract_depth(filename):
-    vals = re.findall("\d+\.\d+", filename.replace('_', '.'))
+    vals = re.findall(r"\d+\.\d+", filename.replace('_', '.'))
     return float(vals[0])
 
 def get_spikes(dist_dir):
@@ -83,7 +83,7 @@ def get_spikes(dist_dir):
             spiketrains = list(get_spiketrains(file_data))
             intervals = list(get_intervals(file_data))
 
-            for spiketrain_name, interval_name, spikes in apply_intervals(spiketrains, intervals):
+            for spiketrain_name, interval_name, spikes in apply_intervals(spiketrains, intervals, fixed_interval_name=args.interval_name):
                 if len(spikes) > 50 and (spikes[~0] - spikes[0] > 5.):
                     df = dict()
                     df['spikes'] = spikes
@@ -123,7 +123,7 @@ def get_sdh(st, norm = True):
 
 def pad_to_size(arr, sz, val):
     res = np.full(sz, val, dtype=float)
-    res[:len(arr)] = arr
+    res[:len(arr)] = arr[:sz]
     
     return res
 
@@ -253,6 +253,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir',   type=str, required=True, help='Input directory')
     parser.add_argument('--dist_file',  type=str, required=True, help='File with results')
     parser.add_argument('--clusters',   type=int, default=4, help='Number of clusters')
+    parser.add_argument('--interval_name', type=str, default=None)
     parser.add_argument('--plot', help='File with results', action='store_true')
 
     args = parser.parse_args()

@@ -53,6 +53,19 @@ class FonChecker(Checker):
         for st_name, st_events in spiketrains:    
             for interval_name, interval_values in fon_intervals:
                 yield from self.apply_interval(st_name, st_events, 'fon', interval_values)
+                
+class NameChecker(Checker):
+    def __init__(self, interval_name, merge_intervals=True):
+        super(NameChecker, self).__init__(merge_intervals)
+        
+        self.interval_name = interval_name
+        
+    def filter_intervals(self, spiketrains, intervals):
+        fon_intervals = [interval for interval in intervals if interval[0] == 'fon']
+        
+        for st_name, st_events in spiketrains:    
+            for interval_name, interval_values, in filter(lambda x: x[0] == self.interval_name, intervals):
+                yield from self.apply_interval(st_name, st_events, interval_name, interval_values)
 
 
 class NeuronChecker(Checker):
@@ -60,9 +73,9 @@ class NeuronChecker(Checker):
         super(NeuronChecker, self).__init__(merge_intervals)
 
         if check_suffix:
-            self.name_checker = lambda x,y: x.endswith(y)
+            self.name_checker = lambda x,y: y.endswith(x)
         else:
-            self.name_checker = lambda x,y: x.startswith(y)
+            self.name_checker = lambda x,y: y.startswith(x)
     
     def filter_intervals(self, spiketrains, intervals):
         for st_name, st_events in spiketrains:
@@ -70,12 +83,14 @@ class NeuronChecker(Checker):
                 yield from self.apply_interval(st_name, st_events, interval_name, interval_values) 
 
 
-def apply_intervals(spiketrains, intervals, names_preprocessed=False):
+def apply_intervals(spiketrains, intervals, names_preprocessed=False, fixed_interval_name=None):
     interval_names = [interval[0] for interval in intervals]
     
-    if names_preprocessed:
+    if not(fixed_interval_name is None):
+        checker = NameChecker(fixed_interval_name) 
+    elif names_preprocessed:
         checker = NeuronChecker(check_suffix=False)
-    if len(intervals) == 1 and interval_names[0] == 'allfile':
+    elif len(intervals) == 1 and interval_names[0] == 'allfile':
         checker = AllfileChecker()
     elif len(set(interval_names)) == 2 and 'fon' in interval_names:
         checker = FonChecker()
