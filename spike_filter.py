@@ -90,7 +90,7 @@ def apply_intervals(spiketrains, intervals, names_preprocessed=False, fixed_inte
         checker = NameChecker(fixed_interval_name) 
     elif interval_mode.lower() == 'allfile':
         checker = AllfileChecker()
-    else
+    else:
         checker = FonChecker()
     
     yield from checker.filter_intervals(spiketrains, intervals)
