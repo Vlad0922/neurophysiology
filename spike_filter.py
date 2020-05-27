@@ -83,18 +83,14 @@ class NeuronChecker(Checker):
                 yield from self.apply_interval(st_name, st_events, interval_name, interval_values) 
 
 
-def apply_intervals(spiketrains, intervals, names_preprocessed=False, fixed_interval_name=None):
+def apply_intervals(spiketrains, intervals, names_preprocessed=False, fixed_interval_name=None, interval_mode=None):
     interval_names = [interval[0] for interval in intervals]
     
     if not(fixed_interval_name is None):
         checker = NameChecker(fixed_interval_name) 
-    elif names_preprocessed:
-        checker = NeuronChecker(check_suffix=False)
-    elif len(intervals) == 1 and interval_names[0] == 'allfile':
+    elif interval_mode.lower() == 'allfile':
         checker = AllfileChecker()
-    elif len(set(interval_names)) == 2 and 'fon' in interval_names:
+    else
         checker = FonChecker()
-    else:
-        checker = NeuronChecker(check_suffix=True)
     
     yield from checker.filter_intervals(spiketrains, intervals)

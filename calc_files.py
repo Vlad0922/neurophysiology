@@ -146,8 +146,11 @@ def main(args):
 
             spiketrains = list(get_spiketrains(file_data))
             intervals = list(get_intervals(file_data))
+            
+            print(spiketrains)
+            print(intervals)
 
-            for spiketrain_name, interval_name, spikes in apply_intervals(spiketrains, intervals, fixed_interval_name=args.interval_name):
+            for spiketrain_name, interval_name, spikes in apply_intervals(spiketrains, intervals, fixed_interval_name=args.interval_name, mode=args.interval_mode):
                 if len(spikes) < 50 or spikes[~0] - spikes[0] < 5:
                     continue
                 
@@ -192,6 +195,7 @@ if __name__ == '__main__':
     parser.add_argument('--burst_algo', type=str, default='PS')
     parser.add_argument('--all', type=bool, default=False)
     parser.add_argument('--interval_name', type=str, default=None)
+    parser.add_argument('--interval_mode', type=str, default=None)
 
     args = parser.parse_args()
 
