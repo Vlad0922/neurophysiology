@@ -150,7 +150,7 @@ def main(args):
             print(spiketrains)
             print(intervals)
 
-            for spiketrain_name, interval_name, spikes in apply_intervals(spiketrains, intervals, fixed_interval_name=args.interval_name, mode=args.interval_mode):
+            for spiketrain_name, interval_name, spikes in apply_intervals(spiketrains, intervals, fixed_interval_name=args.interval_name, interval_mode=args.interval_mode):
                 if len(spikes) < 50 or spikes[~0] - spikes[0] < 5:
                     continue
                 
