@@ -31,8 +31,6 @@ try:
 except:
     print('using oldschool matplotlib')
 
-import neo.io
-
 importr('pracma')
 importr('sjemea')
 ro.r('source("3rdparty/PS_method.R")')
