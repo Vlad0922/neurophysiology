@@ -32,7 +32,7 @@ import scipy.spatial.distance as ssd
 
 from spike_filter import apply_intervals, get_intervals, get_spiketrains
 
-PATTERN_COLORS = {'tonic': 'green', 'irregular': 'yellow', 'burst-like': 'orange', 'burst': 'red'}
+PATTERN_COLORS = {'tonic': 'green', 'irregular': 'yellow', 'burst': 'orange', 'pause': 'red'}
 
 def JSD(P, Q):
     _P = P / np.linalg.norm(P, ord=1)
