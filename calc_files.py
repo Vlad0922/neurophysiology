@@ -171,7 +171,7 @@ def main(args):
                           'oscore_3.0_8.0',  'oscore_8.0_12.0', 'oscore_12.0_20.0', 'oscore_20.0_30.0', 'oscore_30.0_60.0', 'oscore_60.0_90.0']]
 
     if args.compute_clusters:
-        print('Computing clusters...'
+        print('Computing clusters...')
         detect_clusters(dist_dir, args.n_clusters)
 
         clusters_data = pd.read_excel('clusters.xlsx')
