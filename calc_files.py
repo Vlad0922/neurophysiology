@@ -190,7 +190,7 @@ if __name__ == '__main__':
     parser.add_argument('--dist_file',  type=str, required=True, help='File with results')
     parser.add_argument('--si_thresh',  type=float, help='S parameter for PS method')
     parser.add_argument('--bin_func',   type=str, default='discharge')
-    parser.add_argument('--compute_clusters', type=bool, default=False)
+    parser.add_argument('--compute_clusters', action='store_true')
     parser.add_argument('--n_clusters', type=int, default=4)
     parser.add_argument('--burst_algo', type=str, default='PS')
     parser.add_argument('--all', type=bool, default=False)
