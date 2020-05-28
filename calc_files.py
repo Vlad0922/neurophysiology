@@ -103,7 +103,7 @@ def merge_st(st_list):
 
 
 def detect_clusters(data_dir, n_clusters):
-    args = ('python', 'compute_clusters.py', '--data_dir', data_dir, '--dist_file', 'clusters', '--clusters', str(n_clusters))
+    args = ('python', 'compute_clusters.py', '--data_dir', data_dir, '--dist_file', 'clusters', '--clusters', str(n_clusters), '--plot')
     p = subprocess.Popen(args, stdout = subprocess.PIPE, stderr=subprocess.STDOUT)
     p.wait()
 
@@ -121,7 +121,7 @@ def merge_with_clusters(stats_data, clusters_data):
 
 
 def extract_depth(filename):
-    vals = re.findall(r"\d+\.\d+", filename.replace('_', '.'))
+    vals = re.findall(r"-?\d+\.\d+", filename.replace('_', '.'))
     return float(vals[0])
 
 def main(args):
@@ -161,7 +161,9 @@ def main(args):
 
                 for k in df:
                     all_data[k].append(df[k])
-                
+    
+    print('Done')
+    
     all_data = pd.DataFrame(all_data)
     all_data = all_data[['patient', 'doc_name', 'side', 'depth', 'data_name', 'interval_name', 'filter_length', 'spike_count', 'type', 'firing_rate', 'cv', 'AI', 'frequency_variance',  'isi_mean', 'isi_median',
                           'isi_std', 'skewness', 'kurtoisis', 'local_variance',  'diff_entropy (Nu)', 'ISI_larger_mean', 'burst_index', 'burst_spike_percent', 'ratio_burst_time', 'burst_rate',  
@@ -169,15 +171,17 @@ def main(args):
                           'oscore_3.0_8.0',  'oscore_8.0_12.0', 'oscore_12.0_20.0', 'oscore_20.0_30.0', 'oscore_30.0_60.0', 'oscore_60.0_90.0']]
 
     if args.compute_clusters:
+        print('Computing clusters...'
         detect_clusters(dist_dir, args.n_clusters)
 
         clusters_data = pd.read_excel('clusters.xlsx')
 
         all_data = merge_with_clusters(all_data, clusters_data)
-    
+        print('Done')
+       
+    print('Saving...')
     all_data.to_excel(dist_file, index=False)
-
-    print('done')
+    print('Done')
 
 
 if __name__ == '__main__':

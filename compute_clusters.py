@@ -226,14 +226,13 @@ def main(args):
     if len(centroids) == 2:
         pattern_names = ['tonic', 'burst']
     elif len(centroids) == 3:
-        pattern_names = ['tonic', 'burst-like', 'burst']
+        pattern_names = ['tonic', 'pause', 'burst']
     else:
-        pattern_names = ['tonic', 'irregular', 'burst-like', 'burst']
+        pattern_names = ['tonic', 'irregular', 'pause', 'burst']
 
     df = pd.DataFrame(data).drop('spikes', axis=1)
 
     df['Structure'] = df['depth'].apply(get_structure)
-    #df['Pattern'] = mdl.labels_
     df['Pattern'] = hcut_curr - 1
     df['Pattern'] = df['Pattern'].apply(get_pat_name, pattern_names=pattern_names, cmap=hcentroids_indexes)
     
