@@ -106,6 +106,8 @@ def detect_clusters(data_dir, n_clusters):
     args = ('python', 'compute_clusters.py', '--data_dir', data_dir, '--dist_file', 'clusters', '--clusters', str(n_clusters), '--plot')
     p = subprocess.Popen(args, stdout = subprocess.PIPE, stderr=subprocess.STDOUT)
     p.wait()
+    
+    out, _ = p.communicate()
 
 
 def merge_with_clusters(stats_data, clusters_data):

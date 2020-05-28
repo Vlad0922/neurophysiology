@@ -183,7 +183,6 @@ def get_pat_name(l, pattern_names, cmap):
 def plot_cv_ai(df):
     fig, ax = plt.subplots(figsize=(10,10))
     def _plot_single(grouped, pname):
-        print(pname)
         pcol = PATTERN_COLORS[pname]
         ax.scatter(grouped['CV'], grouped['AI'], label=pname, color=pcol)
     
@@ -199,18 +198,18 @@ def plot_cv_ai(df):
 
 def main(args):
     data = get_spikes(args.data_dir)
-    print('Patients list: {}'.format(list(np.unique(data['patient']))))
 
     all_sdh = np.array([pad_to_size(get_sdh(st), 20, 0.0) for st in data['spikes']])
 
     M = sp.spatial.distance.pdist(all_sdh, metric=JSD)
     M_dists = ssd.squareform(M)
-
+    
     n_clusts = args.clusters
     Z_curr = linkage(normalize(all_sdh), 'ward')
-
-    t, hcut_curr = find_cut(Z_curr, n_clusts)
-
+    t = Z_curr[-(n_clusts-1),2]
+    #t, hcut_curr = find_cut(Z_curr, n_clusts)
+    hcut_curr = fcluster(Z_curr, t=n_clusts, criterion='maxclust') - 1
+    
     mdl = KMeans(n_clusters=n_clusts).fit(all_sdh)
     cut_curr = mdl.labels_        
 
@@ -226,14 +225,15 @@ def main(args):
     if len(centroids) == 2:
         pattern_names = ['tonic', 'burst']
     elif len(centroids) == 3:
-        pattern_names = ['tonic', 'pause', 'burst']
+        pattern_names = ['tonic', 'burst', 'pause',]
     else:
-        pattern_names = ['tonic', 'irregular', 'pause', 'burst']
-
-    df = pd.DataFrame(data).drop('spikes', axis=1)
+        pattern_names = ['tonic', 'irregular', 'burst', 'pause']
+    
+    del data['spikes']
+    df = pd.DataFrame(data)
 
     df['Structure'] = df['depth'].apply(get_structure)
-    df['Pattern'] = hcut_curr - 1
+    df['Pattern'] = hcut_curr
     df['Pattern'] = df['Pattern'].apply(get_pat_name, pattern_names=pattern_names, cmap=hcentroids_indexes)
     
     df = df[['patient', 'doc_name', 'data_name', 'interval_name', 'depth', 'Structure', 'Pattern', 'AI', 'CV', 'firing rate']]
