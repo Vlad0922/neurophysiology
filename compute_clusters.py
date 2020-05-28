@@ -7,11 +7,12 @@ import nexfile
 
 import numpy as np
 from scipy.cluster import hierarchy
-from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
+from scipy.cluster.hierarchy import dendrogram, linkage, fcluster, set_link_color_palette
 
 import scipy as sp
 
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches   
 
 from collections import Counter
 
@@ -148,12 +149,15 @@ def find_cut(Z, num, l = 0.05, r = 10.):
     return t, curr_cut
 
 
-def plot_tree(Z_curr, t):
+def plot_tree(Z_curr, t, pattern_names):
+    colors = [PATTERN_COLORS[pname] for pname in pattern_names]
+    set_link_color_palette(colors)
+
     fig_tree, axes_dend = plt.subplots(ncols = 2, figsize=(20, 10))
     _ = dendrogram(Z_curr, color_threshold=t, above_threshold_color="grey", ax=axes_dend[0])
 
-    optim = np.argmax(Z_curr[:,2][::-1][:9] / Z_curr[:,2][::-1][1:10]) + 1
-
+    optim = np.argmax(Z_curr[:,2][::-1][:9] / Z_curr[:,2][::-1][1:10]) + 1   
+    
     axes_dend[1].plot(np.arange(1, 11), Z_curr[:,2][::-1][:10])
     axes_dend[1].plot([optim + 1], [Z_curr[:, 2][::-1][optim]], marker='o', color='red', markersize=10)
     axes_dend[1].set_title('Cost of merging')
@@ -165,6 +169,10 @@ def plot_tree(Z_curr, t):
     axes_dend[0].set_title('Dendogram')
     axes_dend[0].set_ylabel('Sum of squares')
     axes_dend[0].set_xticks([])
+    
+    
+    patches = [mpatches.Patch(color=PATTERN_COLORS[pname], label=pname) for pname in pattern_names]
+    axes[0].legend(handles=patches)
 
     fig_tree.savefig('dendogram.png')
 
@@ -242,7 +250,7 @@ def main(args):
     df.to_excel(target_fname, index=False, header=True)
     
     if args.plot:
-        plot_tree(Z_curr, t)
+        plot_tree(Z_curr, t, pattern_names)
         plot_cv_ai(df)
 
 

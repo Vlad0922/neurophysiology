@@ -167,10 +167,6 @@ def main(args):
     print('Done')
     
     all_data = pd.DataFrame(all_data)
-    all_data = all_data[['patient', 'doc_name', 'side', 'depth', 'data_name', 'interval_name', 'filter_length', 'spike_count', 'type', 'firing_rate', 'cv', 'AI', 'frequency_variance',  'isi_mean', 'isi_median',
-                          'isi_std', 'skewness', 'kurtoisis', 'local_variance',  'diff_entropy (Nu)', 'ISI_larger_mean', 'burst_index', 'burst_spike_percent', 'ratio_burst_time', 'burst_rate',  
-                          'interburst_interval',  'mean_burst_len',  'mean_isi_in_burst', 'mean_spikes_in_burst', 'median_isi_in_burst', 'pause_index',
-                          'oscore_3.0_8.0',  'oscore_8.0_12.0', 'oscore_12.0_20.0', 'oscore_20.0_30.0', 'oscore_30.0_60.0', 'oscore_60.0_90.0']]
 
     if args.compute_clusters:
         print('Computing clusters...')
@@ -180,6 +176,11 @@ def main(args):
 
         all_data = merge_with_clusters(all_data, clusters_data)
         print('Done')
+        
+    all_data = all_data[['patient', 'doc_name', 'side', 'depth', 'data_name', 'interval_name', 'filter_length', 'spike_count', 'type', 'Pattern', 'firing_rate', 'cv', 'AI', 'frequency_variance',  'isi_mean', 'isi_median',
+                          'isi_std', 'skewness', 'kurtoisis', 'local_variance',  'diff_entropy (Nu)', 'ISI_larger_mean', 'burst_index', 'burst_spike_percent', 'ratio_burst_time', 'burst_rate',  
+                          'interburst_interval',  'mean_burst_len',  'mean_isi_in_burst', 'mean_spikes_in_burst', 'median_isi_in_burst', 'pause_index',
+                          'oscore_3.0_8.0',  'oscore_8.0_12.0', 'oscore_12.0_20.0', 'oscore_20.0_30.0', 'oscore_30.0_60.0', 'oscore_60.0_90.0']]
        
     print('Saving...')
     all_data.to_excel(dist_file, index=False)
