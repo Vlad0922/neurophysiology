@@ -172,7 +172,7 @@ def plot_tree(Z_curr, t, pattern_names):
     
     
     patches = [mpatches.Patch(color=PATTERN_COLORS[pname], label=pname) for pname in pattern_names]
-    axes[0].legend(handles=patches)
+    axes_dend[0].legend(handles=patches)
 
     fig_tree.savefig('dendogram.png')
 
