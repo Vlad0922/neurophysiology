@@ -88,9 +88,13 @@ def apply_intervals(spiketrains, intervals, names_preprocessed=False, fixed_inte
     
     if not(fixed_interval_name is None):
         checker = NameChecker(fixed_interval_name) 
-    elif interval_mode.lower() == 'allfile':
+    elif names_preprocessed:
+        checker = NeuronChecker(check_suffix=False)
+    elif len(intervals) == 1 and interval_names[0] == 'allfile':
         checker = AllfileChecker()
-    else:
+    elif 'fon' in interval_names:
         checker = FonChecker()
+    else:
+        checker = NeuronChecker(check_suffix=True)
     
     yield from checker.filter_intervals(spiketrains, intervals)
