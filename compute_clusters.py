@@ -75,7 +75,7 @@ def get_spikes(dist_dir):
             ext = full_name.split('.')[~0].lower()
             depth = extract_depth(f_name)
 
-            if ext != 'nex':
+            if not('nex' in ext.lower()):
                 continue
 
             r = nexfile.Reader()
