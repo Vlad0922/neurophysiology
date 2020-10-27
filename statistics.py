@@ -347,3 +347,10 @@ def approximate_entropy(U, m, r):
     N = len(U)
 
     return abs(_phi(m + 1) - _phi(m))
+
+
+def calc_preburst_interval(mask, spikes):
+    prespike = np.where(np.diff(mask.astype(int)) == 1)[0]
+    burst_start = prespike + 1
+
+    return np.mean(spikes[burst_start] - spikes[prespike])
