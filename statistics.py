@@ -350,6 +350,9 @@ def approximate_entropy(U, m, r):
 
 
 def calc_preburst_interval(mask, spikes):
+    if mask.sum() == 0:
+        return np.nan
+
     prespike = np.where(np.diff(mask.astype(int)) == 1)[0]
     burst_start = prespike + 1
 
