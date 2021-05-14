@@ -138,11 +138,11 @@ def main(args):
             patient = full_name.split(os.sep)[~1]
 
             ext = full_name.split('.')[~0].lower()
-            depth = extract_depth(f_name)
-
+            
             if not('nex' in ext):
                 continue
             
+            depth = extract_depth(f_name)
             print(full_name)
             r = nexfile.Reader()
             file_data = r.ReadNexFile(filePath=full_name)
